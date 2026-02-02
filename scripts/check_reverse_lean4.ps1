@@ -5,6 +5,7 @@ param(
   [switch]$RequireMathlib,
   [switch]$SkipLint,
   [int]$TimeoutSec = 120,
+  [int]$NoOutputTimeoutSec = 0,
   [string]$LakePath,
   [string]$LeanPath,
   [string]$Python = "python",
@@ -68,6 +69,8 @@ function Invoke-WithTimeout([string]$Exe, [string[]]$ArgList, [string]$WorkingDi
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $leanFile = (Resolve-Path $Path).Path
 $leanDir = Split-Path -Parent $leanFile
+$baseDir = Split-Path $here -Parent
+$watchdogScript = Join-Path $baseDir "runtime\\watchdog.py"
 
 if (-not $LintScript -or $LintScript.Trim() -eq "") {
   $LintScript = Join-Path $here "lint_reverse_lean4.py"
@@ -93,7 +96,13 @@ if ($RequireMathlib) {
     throw "Strict mode requires 'lake'. Install Lean4 toolchain (elan recommended) and ensure lake is on PATH."
   }
 
-  $r = Invoke-WithTimeout -Exe $lake.Source -ArgList @("env", "lean", $leanFile) -WorkingDirectory $project -TimeoutSec $TimeoutSec
+  if ($NoOutputTimeoutSec -gt 0 -and (Test-Path $watchdogScript)) {
+    $py = if ($Python -and $Python.Trim() -ne "") { $Python } else { "python" }
+    $wdArgs = @($watchdogScript, "--timeout", "$NoOutputTimeoutSec", "--cwd", $project, "--", $lake.Source, "env", "lean", $leanFile)
+    Invoke-WithTimeout -Exe $py -ArgList $wdArgs -WorkingDirectory $here -TimeoutSec $TimeoutSec | Out-Null
+  } else {
+    $r = Invoke-WithTimeout -Exe $lake.Source -ArgList @("env", "lean", $leanFile) -WorkingDirectory $project -TimeoutSec $TimeoutSec
+  }
   Write-Output (ConvertTo-Json @{ status = "passed"; mode = "lake_env_lean"; project = $project; path = $leanFile } -Depth 5)
   exit 0
 }
@@ -103,6 +112,12 @@ if (-not $lean) {
   throw "Required command not found: lean. Install Lean4 (elan recommended) and ensure 'lean' is on PATH."
 }
 
-Invoke-WithTimeout -Exe $lean.Source -ArgList @($leanFile) -WorkingDirectory $leanDir -TimeoutSec $TimeoutSec | Out-Null
+if ($NoOutputTimeoutSec -gt 0 -and (Test-Path $watchdogScript)) {
+  $py = if ($Python -and $Python.Trim() -ne "") { $Python } else { "python" }
+  $wdArgs = @($watchdogScript, "--timeout", "$NoOutputTimeoutSec", "--cwd", $leanDir, "--", $lean.Source, $leanFile)
+  Invoke-WithTimeout -Exe $py -ArgList $wdArgs -WorkingDirectory $here -TimeoutSec $TimeoutSec | Out-Null
+} else {
+  Invoke-WithTimeout -Exe $lean.Source -ArgList @($leanFile) -WorkingDirectory $leanDir -TimeoutSec $TimeoutSec | Out-Null
+}
 Write-Output (ConvertTo-Json @{ status = "passed"; mode = "lean"; path = $leanFile } -Depth 5)
 exit 0

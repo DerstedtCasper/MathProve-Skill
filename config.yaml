@@ -1,0 +1,20 @@
+skill:
+  name: MathProve
+  version: "2026.02.03"
+
+paths:
+  python: python
+  lean: lean
+  lake: lake
+
+timeouts:
+  sympy_seconds: 15
+  lean_seconds: 60
+  watchdog_no_output_seconds: 20
+  reverse_gate_seconds: 120
+
+flags:
+  enable_ephemeral_workspace: true
+  enable_watchdog: true
+  require_mathlib: true
+  forbid_sorry: true

@@ -8,6 +8,7 @@
 
 import argparse
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -18,6 +19,14 @@ try:
     from .logger import log_event
 except ImportError:  # pragma: no cover
     from logger import log_event
+
+_BASE_DIR = pathlib.Path(__file__).resolve().parents[1]
+if str(_BASE_DIR) not in sys.path:
+    sys.path.append(str(_BASE_DIR))
+try:  # optional SkillMP runtime
+    from runtime.workspace import EphemeralWorkspace
+except Exception:  # noqa: BLE001
+    EphemeralWorkspace = None
 
 
 _STEP_ID_RE = re.compile(r"^S(\d+)$")
@@ -105,6 +114,10 @@ def _run_lean(
     cwd = checker.get("cwd") or default_cwd
     if cwd:
         args += ["--cwd", str(cwd)]
+
+    watchdog_timeout = checker.get("watchdog_timeout") or getattr(args, "lean_watchdog_timeout", 0) or 0
+    if int(watchdog_timeout) > 0:
+        args += ["--watchdog-timeout", str(int(watchdog_timeout))]
 
     code_rc, out, err = _run_python(lean_runner, args, timeout=timeout + 5, python_path=python_path)
     if code_rc != 0:
@@ -423,6 +436,16 @@ def _run_reverse_gate(args, gate_path: pathlib.Path) -> tuple[bool, dict]:
     if not args.lean_cwd:
         return False, {"error": "启用 --lean-gate 需要同时提供 --lean-cwd（Lake/Mathlib 工程目录）"}
 
+    project_dir = args.lean_cwd
+    if getattr(args, "_ephemeral_project", None):
+        project_dir = args._ephemeral_project
+        try:
+            temp_gate = pathlib.Path(project_dir) / gate_path.name
+            temp_gate.write_text(gate_path.read_text(encoding="utf-8"), encoding="utf-8")
+            gate_path = temp_gate
+        except Exception as exc:  # noqa: BLE001
+            return False, {"error": "reverse gate 复制到临时工程失败", "detail": str(exc)}
+
     cmd = [
         "powershell",
         "-File",
@@ -430,13 +453,15 @@ def _run_reverse_gate(args, gate_path: pathlib.Path) -> tuple[bool, dict]:
         "-Path",
         str(gate_path),
         "-ProjectDir",
-        str(args.lean_cwd),
+        str(project_dir),
         "-TimeoutSec",
         str(max(int(args.lean_gate_timeout or 0), int(args.lean_timeout or 0), int(args.timeout) + 10)),
         "-Python",
         str(args.python or sys.executable or "python"),
         "-RequireStepMap",
     ]
+    if int(getattr(args, "lean_watchdog_timeout", 0) or 0) > 0:
+        cmd += ["-NoOutputTimeoutSec", str(int(args.lean_watchdog_timeout))]
     if not args.lean_gate_no_mathlib:
         cmd.append("-RequireMathlib")
     if args.lean_gate_skip_lint:
@@ -472,6 +497,8 @@ def main() -> None:
     parser.add_argument("--lean-python", help="Lean4 客户端运行的 Python 路径（执行脚本解释器）")
     parser.add_argument("--lean-mode", choices=["repl", "file", "auto"], help="Lean4 默认执行模式")
     parser.add_argument("--lean-cwd", help="Lean4 默认工作目录（推荐：Lake+Mathlib 工程）")
+    parser.add_argument("--lean-ephemeral", action="store_true", help="Lean4 执行使用临时工作区（反污染）")
+    parser.add_argument("--lean-watchdog-timeout", type=int, default=0, help="Lean4 文件模式无输出超时秒数")
     parser.add_argument("--log", help="日志路径（JSONL）")
 
     # Reverse gate (Lean4 strict gate).
@@ -492,54 +519,68 @@ def main() -> None:
     steps = payload.get("steps") or []
     problem = payload.get("problem")
 
-    all_passed, report = _audit_steps(steps, args.sympy_runner, args.lean_runner, args.timeout, args)
+    ctx = None
+    try:
+        use_ephemeral = bool(args.lean_ephemeral) or os.environ.get("MATHPROVE_EPHEMERAL") == "1"
+        if use_ephemeral and args.lean_cwd and EphemeralWorkspace:
+            ctx = EphemeralWorkspace(args.lean_cwd)
+            args._ephemeral_project = ctx.__enter__()
+            args.lean_cwd = args._ephemeral_project
 
-    gate_result: dict[str, Any] = {"enabled": bool(args.lean_gate), "status": "skipped"}
-    if args.lean_gate:
-        # If any Lean steps exist, generate gate file and run it.
-        has_lean = any(((s.get("checker") or {}).get("type") == "lean4") for s in steps)
-        if has_lean:
-            sol_path = pathlib.Path(args.solution)
-            gate_path = pathlib.Path(args.lean_gate_out) if args.lean_gate_out else (sol_path.parent / "reverse_gate.lean")
-            tpl_path = pathlib.Path(args.lean_gate_template)
-            ok, msg = _generate_reverse_gate_file(steps, gate_path, tpl_path)
-            gate_result["generate"] = {"ok": ok, "message": msg, "path": str(gate_path)}
-            if ok:
-                ok2, detail = _run_reverse_gate(args, gate_path)
-                gate_result["status"] = "passed" if ok2 else "failed"
-                gate_result["detail"] = detail
-                log_event({"event": "final_audit_reverse_gate", "status": gate_result["status"], "path": str(gate_path)}, log_path=args.log)
-                if not ok2:
+        all_passed, report = _audit_steps(steps, args.sympy_runner, args.lean_runner, args.timeout, args)
+
+        gate_result: dict[str, Any] = {"enabled": bool(args.lean_gate), "status": "skipped"}
+        if args.lean_gate:
+            # If any Lean steps exist, generate gate file and run it.
+            has_lean = any(((s.get("checker") or {}).get("type") == "lean4") for s in steps)
+            if has_lean:
+                sol_path = pathlib.Path(args.solution)
+                gate_path = pathlib.Path(args.lean_gate_out) if args.lean_gate_out else (sol_path.parent / "reverse_gate.lean")
+                tpl_path = pathlib.Path(args.lean_gate_template)
+                ok, msg = _generate_reverse_gate_file(steps, gate_path, tpl_path)
+                gate_result["generate"] = {"ok": ok, "message": msg, "path": str(gate_path)}
+                if ok:
+                    ok2, detail = _run_reverse_gate(args, gate_path)
+                    gate_result["status"] = "passed" if ok2 else "failed"
+                    gate_result["detail"] = detail
+                    log_event(
+                        {"event": "final_audit_reverse_gate", "status": gate_result["status"], "path": str(gate_path)},
+                        log_path=args.log,
+                    )
+                    if not ok2:
+                        all_passed = False
+                else:
+                    gate_result["status"] = "failed"
                     all_passed = False
             else:
-                gate_result["status"] = "failed"
-                all_passed = False
-        else:
-            gate_result["status"] = "skipped"
-            gate_result["detail"] = {"info": "steps 中未发现 lean4 checker，跳过 reverse gate"}
+                gate_result["status"] = "skipped"
+                gate_result["detail"] = {"info": "steps 中未发现 lean4 checker，跳过 reverse gate"}
 
-    failed_steps = [r.get("id") for r in report if r.get("status") != "passed"]
-    audit_status = "passed" if all_passed else "failed"
-    audit_report_parts = []
-    audit_report_parts.append(f"steps: {len(report) - len(failed_steps)}/{len(report)} passed")
-    if failed_steps:
-        audit_report_parts.append(f"failed: {', '.join(str(x) for x in failed_steps)}")
-    if args.lean_gate:
-        audit_report_parts.append(f"reverse_gate: {gate_result.get('status')}")
-    audit_report = "; ".join(audit_report_parts)
+        failed_steps = [r.get("id") for r in report if r.get("status") != "passed"]
+        audit_status = "passed" if all_passed else "failed"
+        audit_report_parts = []
+        audit_report_parts.append(f"steps: {len(report) - len(failed_steps)}/{len(report)} passed")
+        if failed_steps:
+            audit_report_parts.append(f"failed: {', '.join(str(x) for x in failed_steps)}")
+        if args.lean_gate:
+            audit_report_parts.append(f"reverse_gate: {gate_result.get('status')}")
+        audit_report = "; ".join(audit_report_parts)
 
-    output = {
-        "status": audit_status,
-        "report": report,
-        "reverse_gate": gate_result,
-    }
-    print(json.dumps(output, ensure_ascii=False, indent=2))
+        output = {
+            "status": audit_status,
+            "report": report,
+            "reverse_gate": gate_result,
+        }
+        print(json.dumps(output, ensure_ascii=False, indent=2))
 
-    if audit_status == "passed":
-        pathlib.Path(args.solution).write_text(
-            _render_solution(problem, steps, report, audit_status=audit_status, audit_report=audit_report),
-            encoding="utf-8",
-        )
+        if audit_status == "passed":
+            pathlib.Path(args.solution).write_text(
+                _render_solution(problem, steps, report, audit_status=audit_status, audit_report=audit_report),
+                encoding="utf-8",
+            )
+    finally:
+        if ctx:
+            ctx.__exit__(None, None, None)
 
 
 if __name__ == "__main__":

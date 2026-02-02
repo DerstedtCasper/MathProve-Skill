@@ -1,117 +1,173 @@
-# MathProve Skill
+# MathProve
 
-把数学推导变成“可验、可追溯、可讲解”的产品级流程。
+语言 / Language: [中文](README.md) | [English](README.en.md)
 
-MathProve 的核心想法很简单：**别让模型靠“感觉”写证明**。把一个问题拆成小 step——能用 SymPy 快速算清楚的就算；需要严谨证明的就丢给 Lean4+Mathlib 过门禁；每一步都把证据写进草稿，最后再生成一份能经得起追问的正式稿。
+**MathProve** 是一个神经符号（Neuro-Symbolic）数学验证流水线。通过集成符号计算引擎（SymPy）与交互式定理证明器（Lean 4），为 LLM 的数学推理过程提供形式化验证与可追溯审计。  
+项目聚焦于数学推导中的“幻觉”问题：将 Chain-of-Thought 映射为可执行代码或形式化命题，确保 `Solution.md` 中每一步都经过计算验证或逻辑检查。
 
----
+## 核心特性
+- **混合路由（Hybrid Routing）**：自动分析步骤属性；计算类任务交给 SymPy；证明类任务交给 Lean 4 + Mathlib。
+- **严格门禁（Strict Gatekeeping）**：只有执行后通过的 step 才能进入最终解；失败步骤触发回滚或重试。
+- **形式化审计（Formal Auditing）**：生成完整 `.lean` 文件并编译校验全局一致性，避免 `sorry` 或循环论证。
+- **结构化输出**：输出包含符号定义、假设、验证状态的标准化 Markdown。
+- **反污染与看门狗**：Lean 可在临时工作区执行，并提供无输出超时守护。
 
-## 你会得到什么
+## 架构概览
+MathProve 工作流包含以下阶段：
+1. **Decomposition**：将自然语言问题拆解为原子化 `steps.json`。
+2. **Routing & Execution**：
+   - **CAS Track**：调用 Python/SymPy 执行代数、微积分与等式验证。
+   - **ITP Track**：构造 Lean 4 命题，借助 Mathlib tactics 完成证明。
+3. **Verification**：逐步验证返回状态、输出与期望结果。
+4. **Synthesis**：聚合通过的步骤，生成最终报告（`draft.md` → `Solution.md`）。
 
-- **一步一证据**：每个 step 都要么 SymPy 验算通过，要么 Lean4 形式化通过。
-- **讲解友好**：每步强制写清“符号/假设/为什么成立”，适合讲座、答辩、组会。
-- **可审计闭环**：`draft.md`（草稿）→ `final_audit.py`（最终复核）→ `Solution.md`（正式稿）。
-- **硬核反作弊（可选）**：Lean4 reverse gate 禁止 `sorry/admit/axiom/constant/opaque` 走捷径。
-- **可并行（可选）**：支持 subagent 路由，把“讲解、引理检索、Lean 骨架、SymPy 校验”拆给多个助手。
-
----
-
-## 自然语言上手（复制就能用）
-
-你可以直接用自然语言把任务交给 Agent（无需先写 steps）：
-
-示例 A（纯计算，SymPy 为主）：
-```text
-使用 MathProve 处理这个问题：
-- 问题：计算并化简 (x+1)^2 - (x^2+2x+1)
-- 输出：必须生成 Solution.md，并在 draft.md 记录每一步的符号定义与证据
-```
-
-示例 B（证明为主，Lean4 为主）：
-```text
-使用 MathProve 处理这个问题：
-- 问题：证明对任意自然数 n，有 n + 0 = n
-- Lean 工程：D:\MATH Studio\math_studio
-- 输出：必须启用 lean-gate，生成 reverse_gate.lean 并通过后再写 Solution.md
-```
-
-示例 C（混合 + 子代理并行细化）：
-```text
-使用 MathProve 处理这个问题：
-- 问题：证明并验证：对任意实数 x，有 (x+1)^2 = x^2 + 2x + 1
-- Lean 工程：D:\MATH Studio\math_studio
-- 启用 subagent：是（主代理拆步与汇总；子代理负责每步讲解/引理检索/Lean 骨架/SymPy 校验片段）
-- 输出：draft.md 必须包含符号表、假设台账、以及每步讲解版解释（便于讲座/答辩）
-```
-
----
-
-## 3 分钟跑通（CLI）
-
-### 1) 安装依赖（最少需要 SymPy）
-```powershell
+## 环境依赖
+- Python 3.8+
+- Lean 4 + Lake（用于形式化验证；可在 PATH 中调用或显式提供路径）
+- Python 依赖：
+```bash
 python -m pip install -r requirements-dev.txt
 ```
 
-### 2) 检查 Lean4 + Mathlib（推荐）
-把 `--project` 指向你的 Lake+Mathlib 工程目录（例如你本机是 `D:\MATH Studio\math_studio`）：
-```powershell
-python scripts/check_env.py --project "D:\MATH Studio\math_studio" --verify-mathlib
+## 安装
+
+### 作为独立 CLI 工具使用
+```bash
+git clone https://github.com/DerstedtCasper/MathProve-Skill.git MathProve
+cd MathProve
 ```
 
-### 3) 路由与最终复核（推荐开门禁）
+### 集成到 Agent/Codex（可选）
+建议以软链接/目录联接方式挂载到 Codex skills 目录（Windows 默认 `%USERPROFILE%\.codex\skills\`）：
 ```powershell
-python scripts/step_router.py --input "steps.json" --output "steps.routed.json" --explain
-python scripts/final_audit.py --steps "steps.routed.json" --solution "Solution.md" --lean-cwd "D:\MATH Studio\math_studio" --lean-gate --lean-timeout 120
+New-Item -ItemType Junction `
+  -Path "$env:USERPROFILE\.codex\skills\MathProve" `
+  -Target "D:\AI bot\MathProve"
 ```
 
----
+## 快速开始
 
-## 配置与开关（你最常用的那几个）
-
-### 超时与重试
-- SymPy 默认超时：`final_audit.py --timeout <秒>`
-- Lean4 默认超时：`final_audit.py --lean-timeout <秒>`
-- 单步覆盖：`step.checker.timeout`
-- 重试：`step.checker.retries`
-
-### Subagent（多代理并行）
-- 显式启用：`MATHPROVE_SUBAGENT=1`
-- 可选：`MATHPROVE_SUBAGENT_DRIVER=<你的 IDE/CLI 分发命令>`
-- 生成任务包（并行分发 / 单代理自检清单都行）：
-```powershell
-python scripts/subagent_tasks.py --steps steps.routed.json --out-dir subagent_tasks --emit-md
+### 1) 环境自检（建议）
+运行复杂证明前，先确认 Lean 4 工程路径可用且 Mathlib 已编译：
+```bash
+python scripts/check_env.py --project "<path-to-lean-project>" --verify-mathlib
 ```
 
-### 路径覆盖（多环境/多 Python/多 Lean）
-- SymPy：`final_audit.py --python / --sympy-python` 或在 step 里填 `checker.python`
-- Lean4：在 step 里填 `checker.lean_path / checker.lake_path`，或用 `lean_repl_client.py --lean-path/--lake-path`
+### 2) 标准流程（CLI）
+步骤 A：路由与单步验证
+```bash
+python scripts/step_router.py \
+  --input "steps.json" \
+  --output "steps.routed.json" \
+  --explain
+```
 
----
+参数说明：
+- `--explain`：日志中输出路由决策理由（SymPy vs Lean）
 
-## Lean4 reverse gate 是啥（为什么值得开）
+步骤 B：全局审计与生成
+```bash
+python scripts/final_audit.py \
+  --steps "steps.routed.json" \
+  --solution "Solution.md" \
+  --lean-cwd "<path-to-lean-project>" \
+  --lean-gate
+```
 
-一句话：**把“看起来证明了”升级成“机器也认账”**。
+参数说明：
+- `--lean-gate`：启用严格模式，生成 `reverse_gate.lean` 并编译整条证明链
+- `--lean-ephemeral`：Lean 在临时工作区执行
+- `--lean-watchdog-timeout`：Lean 文件模式无输出超时（秒）
 
-启用 `--lean-gate` 后，会自动：
-- 生成 `reverse_gate.lean`（把所有 Lean step 收拢成一个文件）
-- 运行 lint（禁止 `sorry/admit/axiom/constant/opaque`，要求 step map）
-- 在 `--lean-cwd` 指定的 Lake+Mathlib 工程里编译：`lake env lean reverse_gate.lean`
+### 临时工作区与看门狗
+```bash
+python scripts/final_audit.py \
+  --steps "steps.routed.json" \
+  --solution "Solution.md" \
+  --lean-cwd "<path-to-lean-project>" \
+  --lean-ephemeral \
+  --lean-watchdog-timeout 20
+```
 
-> Windows 下可直接用 `scripts/check_reverse_lean4.ps1`；其它系统可用 `scripts/lint_reverse_lean4.py` + `lake env lean` 手动跑同等校验。
+## 输入数据格式示例
+`steps.json` 结构以 `assets/step_schema.json` 为准。以下示例包含 SymPy 步骤与 Lean4 步骤：
+```json
+{
+  "problem": "证明并验证：对任意实数 x，有 (x+1)^2 = x^2 + 2x + 1",
+  "steps": [
+    {
+      "id": "S1",
+      "goal": "展开 (x + 1)^2",
+      "checker": {
+        "type": "sympy",
+        "code": "import sympy as sp\nx = sp.Symbol('x')\nexpr = (x + 1)**2\nassert sp.expand(expr) == x**2 + 2*x + 1\nprint('ok')"
+      }
+    },
+    {
+      "id": "S2",
+      "goal": "形式化：Nat 加法右单位元",
+      "checker": {
+        "type": "lean4",
+        "cmds": [
+          "import Mathlib",
+          "theorem S2 (n : Nat) : n + 0 = n := by simp"
+        ]
+      }
+    }
+  ]
+}
+```
 
----
+## 高级配置
 
-## 仓库结构
+### 路径覆盖（多环境/多版本）
+- SymPy 执行解释器：`final_audit.py --python` 或 `--sympy-python`
+- Lean4 客户端解释器：`final_audit.py --lean-python`
+- Lean/Lake 可执行路径：`step.checker.lean_path` / `step.checker.lake_path` 或 `lean_repl_client.py --lean-path/--lake-path`
 
-- `SKILL.md`：给 Agent 的总指南（建议从这里开始读）
-- `scripts/`：工具脚本（SymPy/Lean4/reverse gate/subagent/final audit）
-- `assets/`：模板与 schema（讲解友好）
-- `references/`：策略与示例（含联网启发示例）
+### Lean Reverse Gate（反向验证）
+为避免“语法正确但逻辑无效”的证明（如滥用 `axiom`、`constant`、`sorry`），启用 reverse gate：
+- 生成 `reverse_gate.lean`，聚合全部 Lean step
+- Lint：禁止 `sorry/admit/axiom/constant/opaque`
+- 在 Lake 工程内执行 `lake env lean reverse_gate.lean`
 
-## 贡献
+Windows 示例：
+```powershell
+pwsh -File scripts/check_reverse_lean4.ps1 `
+  -Path "reverse_gate.lean" `
+  -ProjectDir "<path-to-lean-project>" `
+  -RequireMathlib `
+  -RequireStepMap
+```
 
-想一起把它做得更“像科研基础设施”，欢迎来：
-- 看 `CONTRIBUTING.md`
-- 提 PR：更强的 Mathlib 引理检索策略、更稳的 gate、更好的讲解模板、更好的多代理分发格式等
+### Subagent 并行化
+针对长证明链，启用任务拆分并生成可分发任务包：
+```bash
+export MATHPROVE_SUBAGENT="1"
+python scripts/subagent_tasks.py --steps steps.routed.json --out-dir ./tasks
+```
 
+### Ephemeral Workspace & Watchdog
+Lean 在临时工作区运行，并提供无输出超时守护：
+```bash
+python scripts/final_audit.py \
+  --steps "steps.routed.json" \
+  --solution "Solution.md" \
+  --lean-cwd "<path-to-lean-project>" \
+  --lean-ephemeral \
+  --lean-watchdog-timeout 20
+```
+
+## 目录结构
+- `agent.md`：XML 结构化协议（Supervisor/Prover/Verifier）
+- `config.yaml`：路径/超时/开关
+- `runtime/`：运行时工具（sympy/tactic/citation/workspace/watchdog）
+- `scripts/`：核心执行脚本（兼容入口）
+  - `step_router.py`：步骤路由（SymPy vs Lean4）
+  - `final_audit.py`：最终审计与 `Solution.md` 生成
+  - `check_reverse_lean4.ps1`：reverse gate（lint + 编译）
+- `assets/`：schema 与模板（`assets/step_schema.json`、`assets/templates/`）
+- `tests/`：单元测试
+
+## License
+MIT License

@@ -6,6 +6,8 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 
 try:
     from .logger import log_event
@@ -65,39 +67,84 @@ def _extract_cmds(cmds):
     return extracted
 
 
-def _run_file_mode(cmds, file_cmd, cwd=None, timeout=30):
+def _run_file_mode(cmds, file_cmd, cwd=None, timeout=30, watchdog_timeout=0):
     lines = _extract_cmds(cmds)
     content = "\n\n".join(lines).strip() + "\n"
     with tempfile.NamedTemporaryFile("w", suffix=".lean", delete=False, encoding="utf-8") as fp:
         fp.write(content)
         temp_path = fp.name
+    stdout_chunks: list[str] = []
     try:
-        proc = subprocess.run(
+        proc = subprocess.Popen(
             _to_cmd_list(file_cmd) + [temp_path],
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
-            timeout=timeout,
-            check=False,
             cwd=cwd,
+            bufsize=1,
         )
+        start = time.time()
+        last_output = time.time()
+
+        def _reader():
+            nonlocal last_output
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                stdout_chunks.append(line)
+                if line.strip():
+                    last_output = time.time()
+
+        t = threading.Thread(target=_reader, daemon=True)
+        t.start()
+
+        while True:
+            if proc.poll() is not None:
+                break
+            if timeout and (time.time() - start > timeout):
+                proc.terminate()
+                time.sleep(1)
+                proc.kill()
+                return {
+                    "status": "error",
+                    "error_type": "Timeout",
+                    "message": f"Lean4 文件模式超时（>{timeout}s）",
+                    "stdout": "".join(stdout_chunks),
+                    "stderr": "",
+                }
+            if watchdog_timeout and (time.time() - last_output > watchdog_timeout):
+                proc.terminate()
+                time.sleep(1)
+                proc.kill()
+                return {
+                    "status": "error",
+                    "error_type": "Timeout",
+                    "message": f"Lean4 文件模式无输出超时（>{watchdog_timeout}s）",
+                    "stdout": "".join(stdout_chunks),
+                    "stderr": "",
+                }
+            time.sleep(0.05)
+
+        t.join(timeout=1)
+        rc = proc.returncode or 0
     finally:
         try:
             pathlib.Path(temp_path).unlink(missing_ok=True)
         except Exception:  # noqa: BLE001
             pass
-    if proc.returncode != 0:
+    stdout_text = "".join(stdout_chunks)
+    if rc != 0:
         return {
             "status": "error",
             "error_type": "RuntimeError",
             "message": "Lean4 文件模式执行失败",
-            "stdout": proc.stdout or "",
-            "stderr": proc.stderr or "",
+            "stdout": stdout_text,
+            "stderr": "",
         }
     return {
         "status": "success",
         "outputs": [],
-        "stdout": proc.stdout or "",
-        "stderr": proc.stderr or "",
+        "stdout": stdout_text,
+        "stderr": "",
     }
 
 
@@ -173,6 +220,7 @@ def main():
         help="执行模式（repl 或 file）",
     )
     parser.add_argument("--timeout", type=int, default=15, help="超时秒数")
+    parser.add_argument("--watchdog-timeout", type=int, default=0, help="无输出超时秒数（仅 file 模式）")
     parser.add_argument("--cwd", help="REPL 工作目录")
     parser.add_argument("--retries", type=int, default=0, help="失败重试次数")
     parser.add_argument("--log", help="日志路径（JSONL）")
@@ -193,7 +241,13 @@ def main():
                     args.file_cmd = f"\"{args.lean_path}\""
                 elif args.lake_path:
                     args.file_cmd = f"\"{args.lake_path}\" env lean"
-            result = _run_file_mode(cmds, file_cmd=args.file_cmd, cwd=args.cwd, timeout=args.timeout)
+            result = _run_file_mode(
+                cmds,
+                file_cmd=args.file_cmd,
+                cwd=args.cwd,
+                timeout=args.timeout,
+                watchdog_timeout=args.watchdog_timeout,
+            )
         elif args.mode == "auto":
             if args.repl_cmd == default_repl_cmd and args.lake_path:
                 args.repl_cmd = f"\"{args.lake_path}\" exe repl"
@@ -206,7 +260,13 @@ def main():
                             args.file_cmd = f"\"{args.lean_path}\""
                         elif args.lake_path:
                             args.file_cmd = f"\"{args.lake_path}\" env lean"
-                    result = _run_file_mode(cmds, file_cmd=args.file_cmd, cwd=args.cwd, timeout=args.timeout)
+                    result = _run_file_mode(
+                        cmds,
+                        file_cmd=args.file_cmd,
+                        cwd=args.cwd,
+                        timeout=args.timeout,
+                        watchdog_timeout=args.watchdog_timeout,
+                    )
         else:
             if args.repl_cmd == default_repl_cmd and args.lake_path:
                 args.repl_cmd = f"\"{args.lake_path}\" exe repl"
