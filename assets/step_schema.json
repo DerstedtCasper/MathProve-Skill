@@ -1,0 +1,160 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MathProve Steps",
+  "type": "object",
+  "properties": {
+    "problem": {
+      "type": "string",
+      "description": "原始问题文本（可选）"
+    },
+    "steps": {
+      "type": "array",
+      "description": "步骤列表（按逻辑顺序）",
+      "items": {
+        "$ref": "#/definitions/step"
+      }
+    },
+    "final_check": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["pending", "passed", "failed"]
+        },
+        "report": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "required": ["steps"],
+  "definitions": {
+    "symbol": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "meaning": { "type": "string" }
+      },
+      "required": ["name", "meaning"],
+      "additionalProperties": true
+    },
+    "checker": {
+      "type": "object",
+      "description": "执行/校验配置（SymPy/Lean4/自定义命令）",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["sympy", "lean4", "cmd"]
+        },
+        "code": {
+          "type": "string",
+          "description": "代码（SymPy: Python; Lean4: 逐行命令/片段）"
+        },
+        "code_file": {
+          "type": "string",
+          "description": "代码文件路径（可选；SymPy 常用）"
+        },
+        "cmds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "命令列表（可选；Lean4 常用，等价于 payload.cmds）"
+        },
+        "expect": {
+          "type": "string",
+          "description": "期望结果（可选，用于人工比对/备注）"
+        },
+        "cwd": {
+          "type": "string",
+          "description": "工作目录（可选；Lean4 推荐指向 Lake 项目根目录）"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "超时秒数（可选）"
+        },
+        "retries": {
+          "type": "integer",
+          "description": "失败重试次数（可选）"
+        },
+        "python": {
+          "type": "string",
+          "description": "执行 Python 路径（SymPy/工具脚本可用）"
+        },
+        "lean_path": {
+          "type": "string",
+          "description": "lean 可执行文件路径（可选）"
+        },
+        "lake_path": {
+          "type": "string",
+          "description": "lake 可执行文件路径（可选）"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["repl", "file", "auto"],
+          "description": "Lean4 执行模式（可选）"
+        },
+        "repl_cmd": {
+          "type": "string",
+          "description": "Lean4 REPL 启动命令（可选）"
+        },
+        "file_cmd": {
+          "type": "string",
+          "description": "Lean4 文件模式执行命令（可选；如 lake env lean）"
+        },
+        "cmd": {
+          "type": "string",
+          "description": "自定义命令（当 type=cmd 时）"
+        }
+      },
+      "additionalProperties": true
+    },
+    "step": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "goal": { "type": "string" },
+        "difficulty": {
+          "type": "string",
+          "enum": ["easy", "medium", "hard", "unknown"],
+          "default": "unknown"
+        },
+        "route": {
+          "type": "string",
+          "enum": ["sympy", "lean4", "hybrid", "unknown"],
+          "default": "unknown"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "passed", "failed", "skipped"],
+          "default": "pending"
+        },
+        "evidence": {
+          "type": "string",
+          "description": "本步证据：日志/文件路径/要点摘要（可选）"
+        },
+        "explanation": {
+          "type": "string",
+          "description": "演讲友好解释（建议 5-10 行；可由 subagent 生成）"
+        },
+        "symbols": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/symbol" },
+          "description": "本步用到/引入的符号（建议必填，提升可讲解性）"
+        },
+        "assumptions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "本步新增或依赖的假设/前提（建议必填）"
+        },
+        "lemmas": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "候选或使用的 lemma/定理（优先 Mathlib 全名）"
+        },
+        "checker": { "$ref": "#/definitions/checker" }
+      },
+      "required": ["id", "goal"],
+      "additionalProperties": true
+    }
+  }
+}

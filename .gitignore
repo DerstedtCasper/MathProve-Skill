@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local logs / artifacts
+logs/
+subagent_tasks/
+
+# Lean / Lake
+.lake/
+lake-packages/
+*.olean
+

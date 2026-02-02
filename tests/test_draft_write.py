@@ -1,0 +1,31 @@
+"""验证草稿写入逻辑。"""
+import json
+import pathlib
+import subprocess
+import tempfile
+
+
+def test_draft_logger_append():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        draft_path = pathlib.Path(temp_dir) / "draft.md"
+        step = {
+            "id": "S1",
+            "goal": "验证恒等式",
+            "difficulty": "easy",
+            "route": "sympy",
+            "evidence": "tests",
+            "notes": "ok",
+        }
+        script_path = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "draft_logger.py"
+        cmd = [
+            "python",
+            str(script_path),
+            "--draft",
+            str(draft_path),
+            "--step-json",
+            json.dumps(step, ensure_ascii=False),
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        assert proc.returncode == 0
+        content = draft_path.read_text(encoding="utf-8")
+        assert "S1" in content
