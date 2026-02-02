@@ -1,130 +1,165 @@
-# MathProve Skill
+# MathProve
 
-把数学推导变成“可验、可追溯、可讲解”的产品级流程。
+**MathProve** 是一个神经符号（Neuro-Symbolic）数学验证流水线。通过集成符号计算引擎（SymPy）与交互式定理证明器（Lean 4），为大语言模型（LLM）的数学推理过程提供形式化验证与可追溯审计。
 
-MathProve 的核心想法很简单：**别让证明靠“感觉”成立**。把一个问题拆成小 step——能用 SymPy 快速算清楚的就算；需要严谨证明的就丢给 Lean4 + Mathlib 过门禁；每一步都把证据写进草稿，最后生成一份能经得起追问的 `Solution.md`。
+本项目聚焦于 LLM 在数学推导中的“幻觉”现象：将 Chain-of-Thought (CoT) 映射为可执行代码或形式化命题，确保最终生成的 `Solution.md` 中每一步都经过计算验证或逻辑检查。
 
-## 你会用它来干嘛
+## 核心特性
 
-- 把“推导一大坨”拆成可验证的 `S1/S2/...` step（每步一个小目标）
-- 简单步骤用 SymPy 快速验算；关键步骤用 Lean4 + Mathlib 形式化验真
-- 每一步都强制补齐：符号定义、假设、为什么成立（讲座/答辩不怕被追问）
-- 最终生成：
-  - `draft.md`：过程草稿（可审计、可讲解）
-  - `Solution.md`：最终正式稿（只在全步通过后产出）
+- **混合求解路由 (Hybrid Routing)**：自动分析推理步骤属性；计算类任务分发至 SymPy；逻辑证明类任务分发至 Lean 4 + Mathlib。
+- **严格门禁机制 (Strict Gatekeeping)**：仅通过执行引擎校验的步骤（Step）可合并至最终解；失败步骤触发回滚或重试。
+- **形式化审计 (Formal Auditing)**：支持生成完整 `.lean` 源文件并调用编译器进行全局一致性检查，杜绝滥用 `sorry` 或循环论证。
+- **结构化输出**：生成包含符号定义、假设前提及验证状态的标准化 Markdown 文档。
 
-## 一分钟理解工作链路
+## 架构概览
 
-1. 你用自然语言描述问题（或者先写 `steps.json`）
-2. 路由器评估每个 step 难度：该走 `sympy` 还是 `lean4`
-3. 每步必须“工具验证通过”才允许写入 `draft.md`
-4. 终局复核：把所有 step 串起来再跑一遍（可选开启 Lean4 reverse gate），通过后生成 `Solution.md`
+MathProve 的工作流包含以下阶段：
 
-## 自然语言用法示范（复制就能用）
+1. **Decomposition**：将自然语言问题拆解为原子化 `steps.json`。
+2. **Routing & Execution**：
+   - **CAS Track**：调用 Python/SymPy 进行代数运算、微积分求解等计算验证。
+   - **ITP Track**：构造 Lean 4 命题，利用 Mathlib 策略库（tactics）完成证明。
+3. **Verification**：验证每一步的返回状态、标准输出与期望结果。
+4. **Synthesis**：聚合所有通过的步骤，生成最终报告（`draft.md` → `Solution.md`）。
 
-示例 A（纯计算，SymPy 为主）：
-```text
-使用 MathProve 处理这个问题：
-- 问题：计算并化简 (x+1)^2 - (x^2+2x+1)
-- 输出：必须生成 Solution.md，并在 draft.md 记录每一步的符号定义与证据
+## 环境依赖
+
+- Python 3.8+
+- Lean 4 + Lake（用于形式化验证；需可在 PATH 中调用，或显式提供可执行路径）
+- Python 依赖：
+
+```bash
+python -m pip install -r requirements-dev.txt
 ```
 
-示例 B（证明为主，Lean4 为主）：
-```text
-使用 MathProve 处理这个问题：
-- 问题：证明对任意自然数 n，有 n + 0 = n
-- Lean 工程：D:\MATH Studio\math_studio
-- 输出：必须启用 lean-gate，生成 reverse_gate.lean 并通过后再写 Solution.md
+## 安装
+
+### 作为独立 CLI 工具使用
+
+```bash
+git clone https://github.com/DerstedtCasper/MathProve-Skill.git MathProve
+cd MathProve
 ```
 
-示例 C（混合 + 子代理并行细化）：
-```text
-使用 MathProve 处理这个问题：
-- 问题：证明并验证：对任意实数 x，有 (x+1)^2 = x^2 + 2x + 1
-- Lean 工程：D:\MATH Studio\math_studio
-- 启用 subagent：是（主代理拆步与汇总；子代理负责每步讲解/引理检索/Lean 骨架/SymPy 校验片段）
-- 输出：draft.md 必须包含符号表、假设台账、以及每步讲解版解释（便于讲座/答辩）
-```
+### 集成到 Agent/Codex（可选）
 
-## 部署 / 安装方式（你选一个）
-
-### 方式 1：当作 Codex Skill 安装（推荐）
-
-把仓库放进你的 Codex skills 目录（Windows 默认在 `%USERPROFILE%\.codex\skills\`）：
+建议以软链接/目录联接方式挂载到 Codex skills 目录（Windows 默认 `%USERPROFILE%\.codex\skills\`）：
 
 ```powershell
-# 例：用 junction 做到“本地开发 = 即时生效”
 New-Item -ItemType Junction `
-  -Path "$env:USERPROFILE\\.codex\\skills\\MathProve" `
-  -Target "D:\\AI bot\\MathProve"
+  -Path "$env:USERPROFILE\.codex\skills\MathProve" `
+  -Target "D:\AI bot\MathProve"
 ```
 
-### 方式 2：当作独立工具仓库用（也很好）
+## 快速开始
 
-不装 skill 也能跑：直接用 `python scripts/*.py` 走完整流程（见下方“快速开始”）。
+### 1) 环境自检（推荐）
 
-## 快速开始（CLI / Windows）
+在运行复杂证明前，确保 Lean 4 工程路径可用且 Mathlib 已编译：
 
-### 1) 安装 Python 依赖（最少需要 SymPy）
-```powershell
-python -m pip install -r requirements-dev.txt
+```bash
+python scripts/check_env.py --project "<path-to-lean-project>" --verify-mathlib
 ```
 
-### 2)（可选但强烈推荐）验证 Lean4 + Mathlib
-把 `--project` 指向你的 Lake + Mathlib 工程目录（例如：`D:\MATH Studio\math_studio`）：
-```powershell
-python scripts/check_env.py --project "D:\MATH Studio\math_studio" --verify-mathlib
+### 2) 标准工作流（CLI）
+
+步骤 A：路由与单步验证
+
+```bash
+python scripts/step_router.py \
+  --input "steps.json" \
+  --output "steps.routed.json" \
+  --explain
 ```
 
-### 3) 路由 steps + 最终复核（推荐开门禁）
-```powershell
-python scripts/step_router.py --input "steps.json" --output "steps.routed.json" --explain
-python scripts/final_audit.py --steps "steps.routed.json" --solution "Solution.md" --lean-cwd "D:\MATH Studio\math_studio" --lean-gate --lean-timeout 120
+参数说明：
+
+- `--explain`：在日志中输出路由决策理由（SymPy vs Lean）
+
+步骤 B：全局审计与生成
+
+```bash
+python scripts/final_audit.py \
+  --steps "steps.routed.json" \
+  --solution "Solution.md" \
+  --lean-cwd "<path-to-lean-project>" \
+  --lean-gate
 ```
 
-## 可选增强：子代理（subagent）并行拆活
+参数说明：
 
-适合：步骤很多、需要大量讲解、需要检索 Mathlib 引理、或者 Lean4 证明卡住的情况。
+- `--lean-gate`：启用严格模式，生成 `reverse_gate.lean` 并调用 Lean 编译器验证整条推导链
 
-```powershell
-$env:MATHPROVE_SUBAGENT = "1"
-python scripts/subagent_tasks.py --steps steps.routed.json --out-dir subagent_tasks --emit-md
+## 输入数据格式示例
+
+`steps.json` 的结构以 `assets/step_schema.json` 为准。以下示例展示常见的 SymPy 步骤与 Lean4 步骤：
+
+```json
+{
+  "problem": "证明并验证：对任意实数 x，有 (x+1)^2 = x^2 + 2x + 1",
+  "steps": [
+    {
+      "id": "S1",
+      "goal": "展开 (x + 1)^2",
+      "checker": {
+        "type": "sympy",
+        "code": "import sympy as sp\nx = sp.Symbol('x')\nexpr = (x + 1)**2\nassert sp.expand(expr) == x**2 + 2*x + 1\nprint('ok')"
+      }
+    },
+    {
+      "id": "S2",
+      "goal": "形式化：Nat 加法右单位元",
+      "checker": {
+        "type": "lean4",
+        "cmds": [
+          "import Mathlib",
+          "theorem S2 (n : Nat) : n + 0 = n := by simp"
+        ]
+      }
+    }
+  ]
+}
 ```
 
-你可以把 `subagent_tasks/` 里的任务分发给 IDE/CLI 的 subagent 能力；如果环境不支持，也可以把它当“自检清单”逐项做完。
+## 高级配置
 
-## 可选增强：Lean4 reverse gate（强烈推荐）
+### Lean Reverse Gate（反向验证）
 
-一句话：**把“看起来证明了”升级成“编译器也认账”**。
+为防止生成“语法正确但逻辑无效”的证明（例如滥用 `axiom`、`constant` 或 `sorry`），可启用 reverse gate 进行全局门禁：
 
-启用 `--lean-gate` 后会自动：
-- 生成 `reverse_gate.lean`
+- 生成 `reverse_gate.lean` 并聚合所有 Lean step
 - lint：禁止 `sorry/admit/axiom/constant/opaque` 等捷径
-- 在你的 Lake 工程里跑 `lake env lean reverse_gate.lean`
+- 在 Lake 工程中执行 `lake env lean reverse_gate.lean` 进行编译级校验
 
-（Windows 可直接用）：
+Windows 下可直接运行：
+
 ```powershell
-pwsh -File scripts/check_reverse_lean4.ps1 -Path reverse_gate.lean -ProjectDir "D:\MATH Studio\math_studio" -RequireMathlib -RequireStepMap
+pwsh -File scripts/check_reverse_lean4.ps1 `
+  -Path "reverse_gate.lean" `
+  -ProjectDir "<path-to-lean-project>" `
+  -RequireMathlib `
+  -RequireStepMap
 ```
 
-## 更多文档
+### Subagent 并行化
 
-- 更完整的中文说明：`README.zh-CN.md`
-- Full English guide: `README.en.md`
-- Agent 执行规则与脚本入口：`SKILL.md`
+对长链推导任务，可通过环境变量开启子任务拆分模式，并生成可分发任务包：
 
-<details>
-<summary>English</summary>
-
-Turn math into a **step-by-step, tool-checked, talk-ready** workflow.
-
-MathProve has one simple rule: **don’t let proofs run on vibes**. Break the problem into small steps. If a step is “just algebra”, SymPy checks it fast. If a step needs real rigor, Lean4 + Mathlib verifies it. Every passed step leaves an audit trail in the draft, and the final output is a `Solution.md` that can survive questions.
-
-Quickstart (Windows / CLI):
-```powershell
-python -m pip install -r requirements-dev.txt
-python scripts/check_env.py --project "D:\MATH Studio\math_studio" --verify-mathlib
-python scripts/step_router.py --input steps.json --output steps.routed.json --explain
-python scripts/final_audit.py --steps steps.routed.json --solution Solution.md --lean-cwd "D:\MATH Studio\math_studio" --lean-gate --lean-timeout 120
+```bash
+export MATHPROVE_SUBAGENT="1"
+python scripts/subagent_tasks.py --steps steps.routed.json --out-dir ./tasks
 ```
-</details>
+
+## 目录结构
+
+- `scripts/`：核心逻辑脚本
+  - `step_router.py`：步骤分发器（SymPy vs Lean4）
+  - `final_audit.py`：最终审计与 `Solution.md` 生成
+  - `check_reverse_lean4.ps1`：reverse gate（lint + 编译）
+- `assets/`：schema 与模板（含 `assets/step_schema.json`、`assets/templates/`）
+- `tests/`：单元测试
+
+## License
+
+MIT License
+
