@@ -10,10 +10,10 @@ description: 组合式数学推导与证明技能。适用于需要拆步评估�
 
 ## SkillMP 结构
 - `SKILL.md`：技能入口与总览
-- `agent.md`：XML 结构化协议（Supervisor/Prover/Verifier）
-- `config.yaml`：路径/超时/开关
+- `agent.md`：参考用 agent 提示词/协议模板（不被脚本自动加载）
+- `config.yaml`：可选配置参考（当前脚本不自动读取；用于集中记录路径/超时/开关，按需映射到 CLI 参数）
 - `runtime/`：运行时工具（sympy/tactic/citation/workspace/watchdog）
-- `scripts/`：兼容入口与执行脚本
+- `scripts/`：执行脚本入口（标准 skill 形态）
 
 ## 快速开始
 1. 环境检查（建议验证 Mathlib）  

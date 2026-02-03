@@ -42,7 +42,7 @@ cd MathProve
 ```powershell
 New-Item -ItemType Junction `
   -Path "$env:USERPROFILE\.codex\skills\MathProve" `
-  -Target "D:\AI bot\MathProve"
+  -Target "D:\AI bot\MathProve\skill"
 ```
 
 ## 快速开始
@@ -90,7 +90,7 @@ python scripts/final_audit.py \
 ```
 
 ## 输入数据格式示例
-`steps.json` 结构以 `assets/step_schema.json` 为准。以下示例包含 SymPy 步骤与 Lean4 步骤：
+`steps.json` 结构以 `assets/step_schema.json` 为准（仓库内路径为 `skill/assets/step_schema.json`；挂载/安装为 Skill 后路径为 `assets/step_schema.json`）。以下示例包含 SymPy 步骤与 Lean4 步骤：
 ```json
 {
   "problem": "证明并验证：对任意实数 x，有 (x+1)^2 = x^2 + 2x + 1",
@@ -119,6 +119,13 @@ python scripts/final_audit.py \
 ```
 
 ## 高级配置
+
+### config.yaml（可选）
+`skill/config.yaml`（挂载/安装为 Skill 后路径为 `config.yaml`）用于集中记录推荐的路径/超时/开关；当前 Python 脚本**不会自动读取**它。你可以按需把其中字段映射到 CLI 参数，例如：
+- `timeouts.sympy_seconds` → `final_audit.py --timeout` / `verify_sympy.py --timeout`
+- `timeouts.lean_seconds` → `final_audit.py --lean-timeout`
+- `timeouts.watchdog_no_output_seconds` → `final_audit.py --lean-watchdog-timeout`
+- `timeouts.reverse_gate_seconds` → `final_audit.py --lean-gate-timeout`
 
 ### 路径覆盖（多环境/多版本）
 - SymPy 执行解释器：`final_audit.py --python` 或 `--sympy-python`
@@ -159,14 +166,20 @@ python scripts/final_audit.py \
 ```
 
 ## 目录结构
-- `agent.md`：XML 结构化协议（Supervisor/Prover/Verifier）
-- `config.yaml`：路径/超时/开关
-- `runtime/`：运行时工具（sympy/tactic/citation/workspace/watchdog）
-- `scripts/`：核心执行脚本（兼容入口）
+- `skill/`：可安装的 Skill 根目录（建议把该目录挂载到 Codex skills）
+  - `SKILL.md`：Skill 入口与总览
+  - `assets/`：schema 与模板（`assets/step_schema.json`、`assets/templates/`）
+  - `references/`：参考资料
+  - `agent.md`：参考用 agent 提示词/协议模板（不被脚本自动加载）
+  - `config.yaml`：可选配置参考（当前脚本不自动读取；用于集中记录路径/超时/开关，按需映射到 CLI 参数）
+  - `runtime/`：运行时工具（sympy/tactic/citation/workspace/watchdog）
+  - `scripts/`：Skill 内脚本入口（标准形态）
+- `runtime/`：兼容 shim（保留 `import runtime.*` 导入路径；实际实现位于 `skill/runtime/`）
+- `scripts/`：兼容入口（保留 `python scripts/<name>.py` 与 `import scripts.<name>`；实际实现位于 `skill/scripts/`）
+  - `ci_smoke.py`：CI/本地 smoke gate
   - `step_router.py`：步骤路由（SymPy vs Lean4）
   - `final_audit.py`：最终审计与 `Solution.md` 生成
   - `check_reverse_lean4.ps1`：reverse gate（lint + 编译）
-- `assets/`：schema 与模板（`assets/step_schema.json`、`assets/templates/`）
 - `tests/`：单元测试
 
 ## License

@@ -42,7 +42,7 @@ Mount the repo into the Codex skills directory (Windows default: `%USERPROFILE%\
 ```powershell
 New-Item -ItemType Junction `
   -Path "$env:USERPROFILE\.codex\skills\MathProve" `
-  -Target "D:\AI bot\MathProve"
+  -Target "D:\AI bot\MathProve\skill"
 ```
 
 ## Quickstart
@@ -90,7 +90,7 @@ python scripts/final_audit.py \
 ```
 
 ## `steps.json` format example
-The schema is defined in `assets/step_schema.json`. The example below shows a SymPy step and a Lean4 step:
+The schema is defined in `assets/step_schema.json` (in this repo it lives at `skill/assets/step_schema.json`; once mounted/installed as a Skill it becomes `assets/step_schema.json`). The example below shows a SymPy step and a Lean4 step:
 ```json
 {
   "problem": "Prove and verify: for any real x, (x+1)^2 = x^2 + 2x + 1",
@@ -119,6 +119,13 @@ The schema is defined in `assets/step_schema.json`. The example below shows a Sy
 ```
 
 ## Advanced
+
+### config.yaml (optional)
+`skill/config.yaml` (once mounted/installed as a Skill it becomes `config.yaml`) is a single place to record recommended paths/timeouts/flags; current Python scripts **do not parse it automatically**. You can map fields to CLI flags as needed, e.g.:
+- `timeouts.sympy_seconds` -> `final_audit.py --timeout` / `verify_sympy.py --timeout`
+- `timeouts.lean_seconds` -> `final_audit.py --lean-timeout`
+- `timeouts.watchdog_no_output_seconds` -> `final_audit.py --lean-watchdog-timeout`
+- `timeouts.reverse_gate_seconds` -> `final_audit.py --lean-gate-timeout`
 
 ### Path overrides (multi-env / multi-version)
 - SymPy interpreter: `final_audit.py --python` or `--sympy-python`
@@ -159,14 +166,20 @@ python scripts/final_audit.py \
 ```
 
 ## Repo layout
-- `agent.md`: XML-structured protocol (Supervisor/Prover/Verifier)
-- `config.yaml`: paths/timeouts/flags
-- `runtime/`: runtime tools (sympy/tactic/citation/workspace/watchdog)
-- `scripts/`: core executors (compat entrypoints)
+- `skill/`: installable Skill root (recommended to mount this directory into Codex skills)
+  - `SKILL.md`: Skill entry
+  - `assets/`: schema and templates (`assets/step_schema.json`, `assets/templates/`)
+  - `references/`: references
+  - `agent.md`: reference prompt/protocol template (not loaded by scripts automatically)
+  - `config.yaml`: optional config reference (not parsed by scripts automatically; maps to CLI flags)
+  - `runtime/`: runtime tools (sympy/tactic/citation/workspace/watchdog)
+  - `scripts/`: Skill scripts (standard layout)
+- `runtime/`: compatibility shim (`import runtime.*` still works; real implementation in `skill/runtime/`)
+- `scripts/`: compatibility entrypoints (`python scripts/<name>.py` and `import scripts.<name>`; real implementation in `skill/scripts/`)
+  - `ci_smoke.py`: CI/local smoke gate
   - `step_router.py`: route steps (SymPy vs Lean4)
   - `final_audit.py`: final audit and `Solution.md` synthesis
   - `check_reverse_lean4.ps1`: reverse gate (lint + compile)
-- `assets/`: schema and templates (`assets/step_schema.json`, `assets/templates/`)
 - `tests/`: unit tests
 
 ## License
