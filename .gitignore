@@ -4,7 +4,9 @@ __pycache__/
 
 # Local logs / artifacts
 logs/
+skill/logs/
 subagent_tasks/
+skill/subagent_tasks/
 
 # Lean / Lake
 .lake/
