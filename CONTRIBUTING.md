@@ -17,14 +17,15 @@ python -m pip install -r requirements-dev.txt
 ## 运行测试
 
 ```powershell
-python -m pytest "MathProve/tests"
+python -m pytest tests
+python scripts/ci_smoke.py
 ```
 
 说明：当前 CI 默认只跑 Python 单元测试。Lean4 Gate 由于环境差异大，保持为本地可选验证（欢迎补充更稳健的 CI 方案）。
 
 ## 提交规范
 
-- 修改脚本后：请同时更新 `SKILL.md` / `assets/` 模板（如有影响）。
+- 修改脚本后：请同时更新 `skill/SKILL.md` / `skill/assets/` 模板（如有影响）。
 - 新增严格性约束：请补充单元测试，避免误伤正常用例。
 - 尽量保持“可回退”：无 Lean/无 Mathlib/无 subagent 的环境也能跑通（只是严格度降级）。
 
@@ -32,6 +33,6 @@ python -m pytest "MathProve/tests"
 
 请提供：
 - 复现命令（含 `--lean-cwd`/`--python` 等参数）
-- `MathProve/logs/*.jsonl`（如有）
+- `logs/*.jsonl` 或 `skill/logs/*.jsonl`（如有）
 - 相关 steps JSON（可脱敏后）
 

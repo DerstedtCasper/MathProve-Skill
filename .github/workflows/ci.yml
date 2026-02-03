@@ -33,3 +33,7 @@ jobs:
             python -m pytest MathProve/tests
           fi
 
+      - name: Smoke check
+        run: |
+          python scripts/ci_smoke.py
+
