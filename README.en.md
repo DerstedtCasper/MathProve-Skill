@@ -7,7 +7,7 @@ The core goal is to reduce hallucinations in mathematical derivations: map Chain
 
 ## Key Features
 - **Hybrid Routing**: analyze step properties; route computation-heavy steps to SymPy; route proof-heavy steps to Lean 4 + Mathlib.
-- **Strict Gatekeeping**: only steps that pass an execution backend are allowed into the final solution; failed steps trigger rollback or retries.
+- **Strict Gatekeeping**: only steps that pass an execution backend are allowed into the final solution; by default only steps with `status=passed` and non-empty `evidence` can be appended to `draft.md` (see `scripts/draft_logger.py`; `--allow-unverified` is for debugging only).
 - **Formal Auditing**: generate a full `.lean` file and compile it for global consistency; avoid `sorry` or circular arguments.
 - **Structured Output**: produce standardized Markdown with notation, assumptions, and verification status.
 - **Anti-pollution & Watchdog**: optional ephemeral workspace for Lean runs and no-output timeout guard.

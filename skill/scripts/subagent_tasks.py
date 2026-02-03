@@ -85,7 +85,7 @@ def _mk_task(step: dict, step_index: int, kind: str) -> SubagentTask:
         constraints.append("给出最小可运行 SymPy 片段（能验证本步关键等式/不等式/化简）。")
         expected = "输出一段 SymPy 代码（含 symbols 定义 + assert/简化验证），并说明期望结果。"
     elif kind == "lean_proof":
-        constraints.append("给出 Lean4 代码骨架：theorem/lemma + `by` 证明思路，避免 `sorry/admit`。")
+        constraints.append("给出 Lean4 代码骨架：theorem/lemma + `by` 证明思路，避免 `sorry/admit/axiom/constant/opaque`。")
         expected = "输出 Lean4 代码（可直接放进 reverse gate 文件编译），并说明需要的前提假设。"
     else:
         expected = "给出可执行的产物（代码/表格/清单），避免空泛。"

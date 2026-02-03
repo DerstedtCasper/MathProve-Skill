@@ -7,7 +7,7 @@
 
 ## 核心特性
 - **混合路由（Hybrid Routing）**：自动分析步骤属性；计算类任务交给 SymPy；证明类任务交给 Lean 4 + Mathlib。
-- **严格门禁（Strict Gatekeeping）**：只有执行后通过的 step 才能进入最终解；失败步骤触发回滚或重试。
+- **严格门禁（Strict Gatekeeping）**：只有执行后通过的 step 才能进入最终解；默认仅允许 `status=passed` 且 `evidence` 非空的 step 写入 `draft.md`（见 `scripts/draft_logger.py`；`--allow-unverified` 仅用于调试）。
 - **形式化审计（Formal Auditing）**：生成完整 `.lean` 文件并编译校验全局一致性，避免 `sorry` 或循环论证。
 - **结构化输出**：输出包含符号定义、假设、验证状态的标准化 Markdown。
 - **反污染与看门狗**：Lean 可在临时工作区执行，并提供无输出超时守护。

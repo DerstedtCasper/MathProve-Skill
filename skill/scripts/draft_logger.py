@@ -25,9 +25,18 @@ def _load_step(args):
         "goal": args.goal,
         "difficulty": args.difficulty,
         "route": args.route,
+        "status": args.status,
         "evidence": args.evidence,
         "notes": args.notes,
     }
+
+
+def _is_passed(step: dict) -> bool:
+    return str(step.get("status") or "").strip().lower() == "passed"
+
+
+def _has_evidence(step: dict) -> bool:
+    return bool(str(step.get("evidence") or "").strip())
 
 
 def append_step(draft_path, step):
@@ -99,14 +108,27 @@ def main():
     parser.add_argument("--goal", help="步骤目标")
     parser.add_argument("--difficulty", help="难度")
     parser.add_argument("--route", help="路线")
+    parser.add_argument("--status", default="", help="步骤状态：passed/pending/failed/skipped")
     parser.add_argument("--evidence", help="证据或文件路径")
     parser.add_argument("--notes", default="", help="备注")
+    parser.add_argument(
+        "--allow-unverified",
+        action="store_true",
+        help="允许写入未验证 step（开启后不再强制要求 status=passed 且 evidence 非空）",
+    )
     parser.add_argument("--log", help="日志路径（JSONL）")
     args = parser.parse_args()
 
     step = _load_step(args)
     if not step.get("id") or not step.get("goal"):
         raise SystemExit("缺少 step id 或 goal")
+
+    # Hard gate: by default, only allow verified steps into draft.md.
+    if not args.allow_unverified:
+        if not _is_passed(step):
+            raise SystemExit("draft_logger: step.status 必须为 'passed'（如需绕过请显式使用 --allow-unverified）")
+        if not _has_evidence(step):
+            raise SystemExit("draft_logger: 已通过 step 必须提供 evidence（如需绕过请显式使用 --allow-unverified）")
 
     append_step(args.draft, step)
     log_event({"event": "draft_append", "id": step.get("id")}, log_path=args.log)

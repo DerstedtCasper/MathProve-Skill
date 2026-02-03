@@ -163,6 +163,7 @@ def _smoke_draft_logger(tmp: Path, script_rel: str) -> None:
         "goal": "展开 (x+1)^2",
         "difficulty": "easy",
         "route": "sympy",
+        "status": "passed",
         "evidence": "smoke",
         "notes": "smoke",
     }

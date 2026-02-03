@@ -36,6 +36,53 @@ except Exception:  # noqa: BLE001
 
 _STEP_ID_RE = re.compile(r"^S(\d+)$")
 _STEP_DECL_RE = re.compile(r"(?m)^\s*(?:theorem|lemma)\s+(S\d+)(?!\d)(?![A-Za-z0-9_'])")
+_FORBIDDEN_LEAN_DECL_RE = re.compile(r"(?m)^\s*(axiom|constant|opaque)\b")
+_FORBIDDEN_LEAN_WORD_RE = re.compile(r"(?<![A-Za-z0-9_])(?:sorry|admit)(?![A-Za-z0-9_])")
+
+
+def _strip_lean_comments(text: str) -> str:
+    # Best-effort removal of Lean comments for static linting.
+    text = re.sub(r"/-.*?-/", "", text, flags=re.S)
+    text = re.sub(r"(?m)--.*$", "", text)
+    return text
+
+
+def _lean_static_precheck(step: dict, checker: dict) -> tuple[bool, dict]:
+    """Fast, environment-independent checks for Lean step integrity.
+
+    We do this before running Lean tooling so we can fail fast on forbidden
+    constructs (axiom/constant/opaque/sorry/admit) and enforce traceability
+    (`theorem/lemma Sx` must exist for step Sx).
+    """
+
+    sid = str(step.get("id") or "").strip()
+    cmds = checker.get("cmds")
+    if not cmds and checker.get("cmd"):
+        cmds = [checker.get("cmd")]
+    if not cmds and checker.get("code"):
+        snippet = str(checker.get("code"))
+        cmds = [ln for ln in snippet.splitlines() if ln.strip()]
+    if not cmds:
+        return False, {"error": "Lean4 检查缺少 cmds/cmd/code（静态预检失败）"}
+
+    joined = "\n".join(str(x) for x in cmds)
+    no_comments = _strip_lean_comments(joined)
+
+    if _FORBIDDEN_LEAN_DECL_RE.search(no_comments) or _FORBIDDEN_LEAN_WORD_RE.search(no_comments):
+        return False, {
+            "error": "Lean4 代码包含禁止关键字（axiom/constant/opaque/sorry/admit），拒绝继续审计",
+        }
+
+    # Traceability: for canonical step IDs, require a matching theorem/lemma name.
+    if _STEP_ID_RE.match(sid):
+        decls = {m.group(1) for m in _STEP_DECL_RE.finditer(joined)}
+        if sid not in decls:
+            return False, {
+                "error": f"Lean4 step {sid} 的代码必须包含 `theorem/lemma {sid}` 声明（便于映射与反向门禁）",
+                "found_decls": sorted(decls),
+            }
+
+    return True, {"status": "ok"}
 
 
 def _read_json(path: str) -> dict:
@@ -189,27 +236,41 @@ def _audit_steps(steps: list[dict], sympy_runner: str, lean_runner: str, timeout
             ok = False
             data = None
 
-            while attempts <= retries:
-                attempts += 1
-                ok, data = _run_lean(
-                    checker,
-                    lean_runner,
-                    step_timeout,
-                    python_path=python_path,
-                    default_mode=args.lean_mode,
-                    default_cwd=args.lean_cwd,
-                )
+            static_ok, static_detail = _lean_static_precheck(step, checker)
+            if not static_ok:
+                ok = False
+                data = {"static_lint": static_detail}
                 log_event(
                     {
-                        "event": "final_audit_lean4",
+                        "event": "final_audit_lean4_static_lint",
                         "id": step.get("id"),
-                        "attempt": attempts,
-                        "status": "passed" if ok else "failed",
+                        "status": "failed",
+                        "detail": static_detail,
                     },
                     log_path=args.log,
                 )
-                if ok:
-                    break
+            else:
+                while attempts <= retries:
+                    attempts += 1
+                    ok, data = _run_lean(
+                        checker,
+                        lean_runner,
+                        step_timeout,
+                        python_path=python_path,
+                        default_mode=args.lean_mode,
+                        default_cwd=args.lean_cwd,
+                    )
+                    log_event(
+                        {
+                            "event": "final_audit_lean4",
+                            "id": step.get("id"),
+                            "attempt": attempts,
+                            "status": "passed" if ok else "failed",
+                        },
+                        log_path=args.log,
+                    )
+                    if ok:
+                        break
 
             result["status"] = "passed" if ok else "failed"
             result["detail"] = data
