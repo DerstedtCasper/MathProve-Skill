@@ -13,3 +13,7 @@ skill/subagent_tasks/
 lake-packages/
 *.olean
 
+# Local config overrides
+config.local.yaml
+skill/config.local.yaml
+

@@ -198,7 +198,7 @@ def _audit_steps(steps: list[dict], sympy_runner: str, lean_runner: str, timeout
 
     for step in steps:
         checker = step.get("checker") or {}
-        ctype = checker.get("type") or step.get("route") or "unknown"
+        ctype = checker.get("type") or step.get("route") or step.get("engine") or "unknown"
         result: dict[str, Any] = {"id": step.get("id"), "status": "failed"}
 
         if ctype == "sympy":
@@ -304,7 +304,15 @@ def _render_steps_section(steps: list[dict], report: list[dict]) -> str:
         lines.append(f"- 难度：{step.get('difficulty', '')}")
         lines.append(f"- 路线：{step.get('route', '')}")
         lines.append(f"- 状态：{status_by_id.get(sid, 'unknown')}")
-        lines.append(f"- 证据：{step.get('evidence', '')}")
+        evidence_path = str(step.get('evidence_path') or '').strip()
+        evidence_digest = str(step.get('evidence_digest') or '').strip()
+        legacy_evidence = str(step.get('evidence') or '').strip()
+        if evidence_path:
+            lines.append(f"- ??: {evidence_path}")
+        elif evidence_digest:
+            lines.append(f"- ??: {evidence_digest}")
+        else:
+            lines.append(f"- ??: {legacy_evidence}")
 
         symbols = step.get("symbols") or []
         if isinstance(symbols, list) and symbols:
@@ -390,7 +398,7 @@ def _generate_reverse_gate_file(steps: list[dict], out_path: pathlib.Path, templ
         if n is None:
             return False, f"reverse gate 要求 step id 形如 S1/S2/...，当前: {sid!r}"
         goal = str(step.get("goal") or "").strip()
-    out_lines.append(f"-- S{n}: {goal}")
+        out_lines.append(f"-- S{n}: {goal}")
 
     j = i_map + 1
     while j < len(template_lines) and re.match(r"^\s*--\s*S\d+\s*:", template_lines[j]):

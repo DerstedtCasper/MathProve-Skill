@@ -19,7 +19,11 @@
       "properties": {
         "status": {
           "type": "string",
-          "enum": ["pending", "passed", "failed"]
+          "enum": [
+            "pending",
+            "passed",
+            "failed"
+          ]
         },
         "report": {
           "type": "string"
@@ -28,15 +32,24 @@
       "additionalProperties": true
     }
   },
-  "required": ["steps"],
+  "required": [
+    "steps"
+  ],
   "definitions": {
     "symbol": {
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "meaning": { "type": "string" }
+        "name": {
+          "type": "string"
+        },
+        "meaning": {
+          "type": "string"
+        }
       },
-      "required": ["name", "meaning"],
+      "required": [
+        "name",
+        "meaning"
+      ],
       "additionalProperties": true
     },
     "checker": {
@@ -45,7 +58,11 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["sympy", "lean4", "cmd"]
+          "enum": [
+            "sympy",
+            "lean4",
+            "cmd"
+          ]
         },
         "code": {
           "type": "string",
@@ -57,7 +74,9 @@
         },
         "cmds": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "命令列表（可选；Lean4 常用，等价于 payload.cmds）"
         },
         "expect": {
@@ -90,7 +109,11 @@
         },
         "mode": {
           "type": "string",
-          "enum": ["repl", "file", "auto"],
+          "enum": [
+            "repl",
+            "file",
+            "auto"
+          ],
           "description": "Lean4 执行模式（可选）"
         },
         "repl_cmd": {
@@ -111,21 +134,40 @@
     "step": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "goal": { "type": "string" },
+        "id": {
+          "type": "string"
+        },
+        "goal": {
+          "type": "string"
+        },
         "difficulty": {
           "type": "string",
-          "enum": ["easy", "medium", "hard", "unknown"],
+          "enum": [
+            "easy",
+            "medium",
+            "hard",
+            "unknown"
+          ],
           "default": "unknown"
         },
         "route": {
           "type": "string",
-          "enum": ["sympy", "lean4", "hybrid", "unknown"],
+          "enum": [
+            "sympy",
+            "lean4",
+            "hybrid",
+            "unknown"
+          ],
           "default": "unknown"
         },
         "status": {
           "type": "string",
-          "enum": ["pending", "passed", "failed", "skipped"],
+          "enum": [
+            "pending",
+            "passed",
+            "failed",
+            "skipped"
+          ],
           "default": "pending"
         },
         "evidence": {
@@ -138,22 +180,55 @@
         },
         "symbols": {
           "type": "array",
-          "items": { "$ref": "#/definitions/symbol" },
+          "items": {
+            "$ref": "#/definitions/symbol"
+          },
           "description": "本步用到/引入的符号（建议必填，提升可讲解性）"
         },
         "assumptions": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "本步新增或依赖的假设/前提（建议必填）"
         },
         "lemmas": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "候选或使用的 lemma/定理（优先 Mathlib 全名）"
         },
-        "checker": { "$ref": "#/definitions/checker" }
+        "checker": {
+          "$ref": "#/definitions/checker"
+        },
+        "engine": {
+          "type": "string",
+          "enum": [
+            "sympy",
+            "lean4",
+            "manual",
+            "unknown"
+          ],
+          "default": "unknown"
+        },
+        "evidence_path": {
+          "type": "string",
+          "description": "证据文件路径（SymPy 输出日志/Lean 编译日志等）"
+        },
+        "evidence_digest": {
+          "type": "string",
+          "description": "证据摘要/哈希（用于审计）"
+        },
+        "expected_evidence": {
+          "type": "string",
+          "description": "期望证据描述（Magi 规划/审计）"
+        }
       },
-      "required": ["id", "goal"],
+      "required": [
+        "id",
+        "goal"
+      ],
       "additionalProperties": true
     }
   }

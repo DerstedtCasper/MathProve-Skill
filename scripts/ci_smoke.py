@@ -92,6 +92,9 @@ def _help_checks() -> None:
         "step_router.py",
         "problem_router.py",
         "final_audit.py",
+        "check_routes.py",
+        "magi_plan.py",
+        "bootstrap.py",
     ]
     for v in variants:
         for n in names:
@@ -164,7 +167,7 @@ def _smoke_draft_logger(tmp: Path, script_rel: str) -> None:
         "difficulty": "easy",
         "route": "sympy",
         "status": "passed",
-        "evidence": "smoke",
+        "evidence_digest": "smoke",
         "notes": "smoke",
     }
     proc = _run(

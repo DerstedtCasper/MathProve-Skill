@@ -27,6 +27,8 @@ def _load_step(args):
         "route": args.route,
         "status": args.status,
         "evidence": args.evidence,
+        "evidence_path": args.evidence_path,
+        "evidence_digest": args.evidence_digest,
         "notes": args.notes,
     }
 
@@ -36,6 +38,11 @@ def _is_passed(step: dict) -> bool:
 
 
 def _has_evidence(step: dict) -> bool:
+    if str(step.get("evidence_path") or "").strip():
+        return True
+    if str(step.get("evidence_digest") or "").strip():
+        return True
+    # Back-compat: treat legacy "evidence" as a digest when present.
     return bool(str(step.get("evidence") or "").strip())
 
 
@@ -45,7 +52,15 @@ def append_step(draft_path, step):
     lines.append(f"- 目标：{step.get('goal', '')}")
     lines.append(f"- 难度：{step.get('difficulty', '')}")
     lines.append(f"- 路线：{step.get('route', '')}")
-    lines.append(f"- 证据：{step.get('evidence', '')}")
+    evidence_path = str(step.get('evidence_path') or '').strip()
+    evidence_digest = str(step.get('evidence_digest') or '').strip()
+    legacy_evidence = str(step.get('evidence') or '').strip()
+    if evidence_path:
+        lines.append(f"- 证据路径：{evidence_path}")
+    elif evidence_digest:
+        lines.append(f"- 证据摘要：{evidence_digest}")
+    else:
+        lines.append(f"- 证据（legacy）：{legacy_evidence}")
 
     symbols = step.get("symbols") or []
     if isinstance(symbols, list) and symbols:
@@ -110,6 +125,8 @@ def main():
     parser.add_argument("--route", help="路线")
     parser.add_argument("--status", default="", help="步骤状态：passed/pending/failed/skipped")
     parser.add_argument("--evidence", help="证据或文件路径")
+    parser.add_argument("--evidence-path", help="证据路径")
+    parser.add_argument("--evidence-digest", help="证据摘要/哈希")
     parser.add_argument("--notes", default="", help="备注")
     parser.add_argument(
         "--allow-unverified",

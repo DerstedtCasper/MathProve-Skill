@@ -36,3 +36,10 @@ python scripts/ci_smoke.py
 - `logs/*.jsonl` 或 `skill/logs/*.jsonl`（如有）
 - 相关 steps JSON（可脱敏后）
 
+
+
+## 新增检查
+
+- 新增/修改脚本后：确保提供 `--help` 与稳定 JSON 输出；必要时同步 `scripts/` 兼容入口。
+- 首次或变更配置后：运行 `python scripts/bootstrap.py` 生成 `skill/config.local.yaml` 模板。
+- 路由/依赖变更后：运行 `python scripts/check_routes.py` 并确认输出为 `ok` 或 `user_action_required`。

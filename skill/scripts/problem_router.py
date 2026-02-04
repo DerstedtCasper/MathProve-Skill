@@ -1,13 +1,26 @@
 """问题级路由器：判断 SymPy/Lean4/混合路线。"""
 import argparse
 import json
-import os
 
 try:
     from .logger import log_event
 except ImportError:  # pragma: no cover
     from logger import log_event
 
+try:
+    from ..runtime.config_loader import load_config
+    from ..runtime.routes import apply_subagent_auto_enable
+except Exception:  # pragma: no cover - direct script execution
+    try:
+        import sys
+        from pathlib import Path
+
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from runtime.config_loader import load_config
+        from runtime.routes import apply_subagent_auto_enable
+    except Exception:  # noqa: BLE001
+        load_config = None
+        apply_subagent_auto_enable = None
 
 SYM_KEYWORDS = [
     "计算",
@@ -48,19 +61,18 @@ def route_problem(text):
     return "hybrid"
 
 
-def _truthy(v: str | None) -> bool:
-    if v is None:
-        return False
-    return v.strip().lower() in {"1", "true", "yes", "y", "on"}
-
-
-def detect_subagent_capability() -> dict:
-    """Best-effort detection for multi-agent / subagent capable runtimes."""
-    driver = os.environ.get("MATHPROVE_SUBAGENT_DRIVER") or ""
-    enabled = _truthy(os.environ.get("MATHPROVE_SUBAGENT")) or bool(driver)
-    for k in ("CODEX_SUBAGENT", "CODEX_SUBAGENTS", "MULTI_AGENT", "SUBAGENT", "SUBAGENTS"):
-        enabled = enabled or _truthy(os.environ.get(k))
-    return {"enabled": bool(enabled), "driver": driver}
+def _effective_subagent() -> dict:
+    if load_config is None or apply_subagent_auto_enable is None:  # pragma: no cover
+        return {"enabled": False, "driver": "", "mode": "none", "capability": {}}
+    cfg = load_config()
+    effective = apply_subagent_auto_enable(cfg)
+    sub = (effective.get("routes") or {}).get("subagent") or {}
+    return {
+        "enabled": bool(sub.get("enabled")),
+        "driver": str(sub.get("driver") or ""),
+        "mode": str(sub.get("mode") or "none"),
+        "capability": sub.get("capability") or {},
+    }
 
 
 def main():
@@ -70,12 +82,12 @@ def main():
     args = parser.parse_args()
 
     route = route_problem(args.text)
-    cap = detect_subagent_capability()
+    sub = _effective_subagent()
     execution = "single_agent"
-    if cap.get("enabled") and route in {"lean4", "hybrid"}:
+    if sub.get("enabled") and route in {"lean4", "hybrid"}:
         execution = "subagent"
 
-    result = {"route": route, "execution": execution, "subagent": cap, "text": args.text}
+    result = {"route": route, "execution": execution, "subagent": sub, "text": args.text}
     log_event({"event": "problem_route", "route": route}, log_path=args.log)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 

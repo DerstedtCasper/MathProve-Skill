@@ -14,7 +14,7 @@ def test_draft_logger_append():
             "difficulty": "easy",
             "route": "sympy",
             "status": "passed",
-            "evidence": "tests",
+            "evidence_digest": "tests",
             "notes": "ok",
         }
         script_path = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "draft_logger.py"
@@ -41,7 +41,32 @@ def test_draft_logger_rejects_unverified_by_default():
             "difficulty": "easy",
             "route": "sympy",
             "status": "pending",
-            "evidence": "tests",
+            "evidence_digest": "tests",
+            "notes": "ok",
+        }
+        script_path = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "draft_logger.py"
+        cmd = [
+            "python",
+            str(script_path),
+            "--draft",
+            str(draft_path),
+            "--step-json",
+            json.dumps(step, ensure_ascii=False),
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        assert proc.returncode != 0
+
+
+
+def test_draft_logger_rejects_missing_evidence():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        draft_path = pathlib.Path(temp_dir) / "draft.md"
+        step = {
+            "id": "S1",
+            "goal": "????????",
+            "difficulty": "easy",
+            "route": "sympy",
+            "status": "passed",
             "notes": "ok",
         }
         script_path = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "draft_logger.py"

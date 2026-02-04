@@ -1,20 +1,33 @@
 skill:
-  name: MathProve
-  version: "2026.02.03"
+  name: mathprove
+  version: "3.0.0"
 
 paths:
   python: python
   lean: lean
   lake: lake
 
-timeouts:
-  sympy_seconds: 15
-  lean_seconds: 60
-  watchdog_no_output_seconds: 20
-  reverse_gate_seconds: 120
-
-flags:
-  enable_ephemeral_workspace: true
-  enable_watchdog: true
-  require_mathlib: true
-  forbid_sorry: true
+routes:
+  sympy:
+    enabled: true
+    python: python
+    timeout_seconds: 20
+  lean:
+    enabled: true
+    lean_cmd: lean
+    lake_cmd: lake
+    timeout_seconds: 120
+    watchdog_no_output_seconds: 30
+    static_precheck: true
+    require_mathlib: true
+  web:
+    enabled: false
+    provider: null
+    api_key: null
+  subagent:
+    enabled: false
+    auto_enable: true
+    mode: none
+    driver: ""
+    endpoint: ""
+    note: ""

@@ -65,3 +65,21 @@ def references_dir() -> Path:
     rr = repo_root()
     return rr / "references"
 
+
+def logs_dir() -> Path:
+    sr = skill_root()
+    candidate = sr / "logs"
+    if candidate.exists():
+        return candidate
+    rr = repo_root()
+    return rr / "logs"
+
+
+def subagent_tasks_dir() -> Path:
+    sr = skill_root()
+    candidate = sr / "subagent_tasks"
+    if candidate.exists():
+        return candidate
+    rr = repo_root()
+    return rr / "subagent_tasks"
+

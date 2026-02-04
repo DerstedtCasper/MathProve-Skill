@@ -1,6 +1,5 @@
 import argparse
 import json
-import os
 import pathlib
 from dataclasses import dataclass, asdict
 
@@ -9,41 +8,21 @@ try:
 except Exception:  # pragma: no cover
     from logger import log_event
 
+try:
+    from ..runtime.routes import detect_subagent_capability
+except Exception:  # pragma: no cover - direct script execution
+    try:
+        import sys
+        from pathlib import Path
 
-def _truthy(v: str | None) -> bool:
-    if v is None:
-        return False
-    return v.strip().lower() in {"1", "true", "yes", "y", "on"}
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from runtime.routes import detect_subagent_capability
+    except Exception:  # noqa: BLE001
+        detect_subagent_capability = None
 
 
-def detect_subagent_capability() -> dict:
-    """
-    Best-effort capability detection.
-
-    Different CLIs/IDEs expose subagent features differently; we keep this conservative:
-    - Explicit opt-in: MATHPROVE_SUBAGENT=1
-    - Or driver provided: MATHPROVE_SUBAGENT_DRIVER=<command>
-    - Or common generic flags (best-effort).
-    """
-
-    driver = os.environ.get("MATHPROVE_SUBAGENT_DRIVER")
-    enabled = _truthy(os.environ.get("MATHPROVE_SUBAGENT")) or bool(driver)
-
-    # Generic / vendor-agnostic environment flags (optional).
-    for k in (
-        "CODEX_SUBAGENT",
-        "CODEX_SUBAGENTS",
-        "MULTI_AGENT",
-        "SUBAGENT",
-        "SUBAGENTS",
-    ):
-        enabled = enabled or _truthy(os.environ.get(k))
-
-    return {
-        "enabled": bool(enabled),
-        "driver": driver or "",
-        "evidence": {k: os.environ.get(k, "") for k in ["MATHPROVE_SUBAGENT", "MATHPROVE_SUBAGENT_DRIVER"]},
-    }
+def _fallback_subagent_capability() -> dict:
+    return {"enabled": False, "driver": "", "evidence": {}}
 
 
 @dataclass
@@ -168,7 +147,10 @@ def main() -> None:
     ap.add_argument("--log", default="", help="日志路径（JSONL）")
     args = ap.parse_args()
 
-    cap = detect_subagent_capability()
+    if detect_subagent_capability is None:  # pragma: no cover
+        cap = _fallback_subagent_capability()
+    else:
+        cap = detect_subagent_capability()
     if args.log:
         log_event({"event": "subagent.detect", "capability": cap}, log_path=args.log)
 

@@ -1,33 +1,16 @@
-# MathProve
+﻿# MathProve
 
 Language / 语言: [English](README.en.md) | [中文](README.md)
 
-**MathProve** is a neuro-symbolic math verification pipeline. It integrates a symbolic computation engine (SymPy) and an interactive theorem prover (Lean 4) to provide formal verification and an auditable trail for LLM mathematical reasoning.  
-The core goal is to reduce hallucinations in mathematical derivations: map Chain-of-Thought into executable code or formal propositions, and ensure every step in `Solution.md` has been checked by computation or by logic.
+MathProve is a neuro-symbolic math verification pipeline that combines SymPy and Lean4 to provide an auditable evidence trail. The goal is to turn natural-language derivations into executable steps and summarize verified results in `Solution.md`.
 
-## Key Features
-- **Hybrid Routing**: analyze step properties; route computation-heavy steps to SymPy; route proof-heavy steps to Lean 4 + Mathlib.
-- **Strict Gatekeeping**: only steps that pass an execution backend are allowed into the final solution; by default only steps with `status=passed` and non-empty `evidence` can be appended to `draft.md` (see `scripts/draft_logger.py`; `--allow-unverified` is for debugging only).
-- **Formal Auditing**: generate a full `.lean` file and compile it for global consistency; avoid `sorry` or circular arguments.
-- **Structured Output**: produce standardized Markdown with notation, assumptions, and verification status.
-- **Anti-pollution & Watchdog**: optional ephemeral workspace for Lean runs and no-output timeout guard.
-
-## Architecture Overview
-MathProve runs in the following stages:
-1. **Decomposition**: convert a natural-language problem into atomic `steps.json`.
-2. **Routing & Execution**:
-   - **CAS Track**: use Python/SymPy for algebra, calculus, and equation checks.
-   - **ITP Track**: build Lean 4 statements and discharge them using Mathlib tactics.
-3. **Verification**: validate return codes, stdout/stderr, and expected results per step.
-4. **Synthesis**: aggregate all passed steps into the final report (`draft.md` → `Solution.md`).
-
-## Requirements
-- Python 3.8+
-- Lean 4 + Lake (for formal verification; available via PATH or provided explicitly)
-- Python deps:
-```bash
-python -m pip install -r requirements-dev.txt
-```
+## Highlights
+- **Hybrid routing**: switch between SymPy and Lean4 per step, with manual overrides.
+- **MATH MAGI planning**: three-role voting with veto, producing structured `steps.json`.
+- **Strict gates**: only `status=passed` steps with evidence can enter `draft.md`.
+- **Audit closed-loop**: `final_audit.py` produces the audit result and `Solution.md`.
+- **Auditable logs**: JSONL + Markdown summaries.
+- **Optional routes**: subagent dispatch and web inspiration logging.
 
 ## Installation
 
@@ -37,24 +20,34 @@ git clone https://github.com/DerstedtCasper/MathProve-Skill.git MathProve
 cd MathProve
 ```
 
-### Optional: integrate as an Agent/Codex skill
-Mount the repo into the Codex skills directory (Windows default: `%USERPROFILE%\.codex\skills\`):
+### Mount as a Codex/Agent Skill
+Mount the `skill/` directory and keep the directory name consistent with `name: mathprove` in `SKILL.md`:
 ```powershell
 New-Item -ItemType Junction `
-  -Path "$env:USERPROFILE\.codex\skills\MathProve" `
+  -Path "$env:USERPROFILE\.codex\skills\mathprove" `
   -Target "D:\AI bot\MathProve\skill"
 ```
 
 ## Quickstart
 
-### 1) Environment check (recommended)
-Before running non-trivial proofs, ensure the Lean 4 project path is valid and Mathlib is built:
+### 1) Bootstrap (optional)
+Generate local overrides and refs template:
 ```bash
-python scripts/check_env.py --project "<path-to-lean-project>" --verify-mathlib
+python scripts/bootstrap.py
 ```
 
-### 2) Standard workflow (CLI)
-Step A: route and validate per step
+### 2) Route check (required)
+Validate SymPy/Lean4/Mathlib availability:
+```bash
+python scripts/check_routes.py
+```
+
+### 3) MATH MAGI plan (required)
+```bash
+python scripts/magi_plan.py --problem "<problem text>" --steps-out steps.json --draft draft.md
+```
+
+### 4) Step routing & execution (required)
 ```bash
 python scripts/step_router.py \
   --input "steps.json" \
@@ -62,10 +55,7 @@ python scripts/step_router.py \
   --explain
 ```
 
-Flag notes:
-- `--explain`: print routing decisions (SymPy vs Lean) in logs
-
-Step B: final audit and synthesis
+### 5) Final audit (required)
 ```bash
 python scripts/final_audit.py \
   --steps "steps.routed.json" \
@@ -74,23 +64,16 @@ python scripts/final_audit.py \
   --lean-gate
 ```
 
-Flag notes:
-- `--lean-gate`: enable strict mode; generate `reverse_gate.lean` and compile the full proof chain
-- `--lean-ephemeral`: run Lean in an ephemeral workspace
-- `--lean-watchdog-timeout`: no-output timeout (seconds) for Lean file mode
-
-### Ephemeral Workspace & Watchdog
+### 6) Draft append (optional)
+Append a single verified step:
 ```bash
-python scripts/final_audit.py \
-  --steps "steps.routed.json" \
-  --solution "Solution.md" \
-  --lean-cwd "<path-to-lean-project>" \
-  --lean-ephemeral \
-  --lean-watchdog-timeout 20
+python scripts/draft_logger.py --draft draft.md --step-file one_step.json
 ```
 
-## `steps.json` format example
-The schema is defined in `assets/step_schema.json` (in this repo it lives at `skill/assets/step_schema.json`; once mounted/installed as a Skill it becomes `assets/step_schema.json`). The example below shows a SymPy step and a Lean4 step:
+## State machine
+BOOTSTRAP → ROUTE_CHECK → MATH_MAGI_PLAN → STEP_EXECUTE → VERIFY → AUDIT → DRAFT_COMMIT → FINAL_RESPONSE
+
+## `steps.json` example
 ```json
 {
   "problem": "Prove and verify: for any real x, (x+1)^2 = x^2 + 2x + 1",
@@ -98,6 +81,8 @@ The schema is defined in `assets/step_schema.json` (in this repo it lives at `sk
     {
       "id": "S1",
       "goal": "Expand (x + 1)^2",
+      "engine": "sympy",
+      "expected_evidence": "sympy output: simplify(...) == 0",
       "checker": {
         "type": "sympy",
         "code": "import sympy as sp\nx = sp.Symbol('x')\nexpr = (x + 1)**2\nassert sp.expand(expr) == x**2 + 2*x + 1\nprint('ok')"
@@ -106,6 +91,8 @@ The schema is defined in `assets/step_schema.json` (in this repo it lives at `sk
     {
       "id": "S2",
       "goal": "Formalize: right identity of addition on Nat",
+      "engine": "lean4",
+      "expected_evidence": "lean build success (no goals, no sorries)",
       "checker": {
         "type": "lean4",
         "cmds": [
@@ -118,68 +105,39 @@ The schema is defined in `assets/step_schema.json` (in this repo it lives at `sk
 }
 ```
 
-## Advanced
+## Configuration & routing
 
-### config.yaml (optional)
-`skill/config.yaml` (once mounted/installed as a Skill it becomes `config.yaml`) is a single place to record recommended paths/timeouts/flags; current Python scripts **do not parse it automatically**. You can map fields to CLI flags as needed, e.g.:
-- `timeouts.sympy_seconds` -> `final_audit.py --timeout` / `verify_sympy.py --timeout`
-- `timeouts.lean_seconds` -> `final_audit.py --lean-timeout`
-- `timeouts.watchdog_no_output_seconds` -> `final_audit.py --lean-watchdog-timeout`
-- `timeouts.reverse_gate_seconds` -> `final_audit.py --lean-gate-timeout`
+### config.yaml / config.local.yaml
+- `skill/config.yaml`: defaults.
+- `skill/config.local.yaml`: local overrides (gitignored), created by `bootstrap.py`.
 
-### Path overrides (multi-env / multi-version)
+### Path overrides
 - SymPy interpreter: `final_audit.py --python` or `--sympy-python`
-- Lean client interpreter: `final_audit.py --lean-python`
-- Lean/Lake executables: `step.checker.lean_path` / `step.checker.lake_path` or `lean_repl_client.py --lean-path/--lake-path`
+- Lean4 client: `final_audit.py --lean-python`
+- Lean/Lake executables: `step.checker.lean_path` / `step.checker.lake_path`
 
-### Lean Reverse Gate
-To prevent “syntactically valid but logically invalid” proofs (e.g., abusing `axiom`, `constant`, or `sorry`), enable the reverse gate:
-- generate `reverse_gate.lean` by aggregating all Lean steps
-- lint: ban `sorry/admit/axiom/constant/opaque`
-- compile via `lake env lean reverse_gate.lean` inside the Lake project
+### Subagent route
+- Auto-enable when `routes.subagent.auto_enable=true`.
+- Task pack generation: `python scripts/subagent_tasks.py --steps steps.routed.json --out-dir ./tasks`
 
-On Windows:
-```powershell
-pwsh -File scripts/check_reverse_lean4.ps1 `
-  -Path "reverse_gate.lean" `
-  -ProjectDir "<path-to-lean-project>" `
-  -RequireMathlib `
-  -RequireStepMap
-```
-
-### Subagent parallelization
-For long proof chains, enable task splitting and generate a dispatchable task pack:
+## Web inspiration example
+Append web inspiration to `skill/references/refs.md`:
 ```bash
-export MATHPROVE_SUBAGENT="1"
-python scripts/subagent_tasks.py --steps steps.routed.json --out-dir ./tasks
-```
-
-### Ephemeral Workspace & Watchdog
-Run Lean in a temporary workspace with a no-output timeout guard:
-```bash
-python scripts/final_audit.py \
-  --steps "steps.routed.json" \
-  --solution "Solution.md" \
-  --lean-cwd "<path-to-lean-project>" \
-  --lean-ephemeral \
-  --lean-watchdog-timeout 20
+python skill/scripts/web_inspiration.py \
+  --query "mathlib lemma for ring simplification" \
+  --sources-json "[{\"title\":\"Mathlib simp lemma\",\"url\":\"https://example.com\",\"summary\":\"used for ring simplification\"}]" \
+  --notes "selecting candidate lemmas"
 ```
 
 ## Repo layout
-- `skill/`: installable Skill root (recommended to mount this directory into Codex skills)
-  - `SKILL.md`: Skill entry
-  - `assets/`: schema and templates (`assets/step_schema.json`, `assets/templates/`)
-  - `references/`: references
-  - `agent.md`: reference prompt/protocol template (not loaded by scripts automatically)
-  - `config.yaml`: optional config reference (not parsed by scripts automatically; maps to CLI flags)
-  - `runtime/`: runtime tools (sympy/tactic/citation/workspace/watchdog)
-  - `scripts/`: Skill scripts (standard layout)
-- `runtime/`: compatibility shim (`import runtime.*` still works; real implementation in `skill/runtime/`)
-- `scripts/`: compatibility entrypoints (`python scripts/<name>.py` and `import scripts.<name>`; real implementation in `skill/scripts/`)
-  - `ci_smoke.py`: CI/local smoke gate
-  - `step_router.py`: route steps (SymPy vs Lean4)
-  - `final_audit.py`: final audit and `Solution.md` synthesis
-  - `check_reverse_lean4.ps1`: reverse gate (lint + compile)
+- `skill/`: installable Skill root (recommended mount)
+  - `SKILL.md`: entry and hard rules
+  - `assets/`: schemas and templates
+  - `references/`: external references log
+  - `config.yaml` / `config.local.yaml`
+  - `runtime/`: runtime helpers
+  - `scripts/`: standard script entrypoints
+- `scripts/`: compatibility entrypoints (proxy to `skill/scripts/`)
 - `tests/`: unit tests
 
 ## License

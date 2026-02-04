@@ -89,6 +89,8 @@ def route_steps(payload, explain=False):
             step["difficulty"] = infer_difficulty(goal)
         if not step.get("route"):
             step["route"] = infer_route(goal, step["difficulty"])
+        if not step.get("engine"):
+            step["engine"] = step.get("route")
         if explain:
             step["route_reason"] = {
                 "sympy_hint": _has_any(goal, SYMPY_KEYWORDS),

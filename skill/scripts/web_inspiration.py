@@ -1,4 +1,4 @@
-"""记录联网启发结果（由 IDE 联网能力提供）。"""
+"""Record web inspiration results to references log."""
 import argparse
 import json
 import pathlib
@@ -6,8 +6,10 @@ import time
 
 try:
     from .logger import log_event
+    from .runtime_paths import references_dir
 except ImportError:  # pragma: no cover
     from logger import log_event
+    from runtime_paths import references_dir
 
 
 def _load_sources(args):
@@ -18,45 +20,54 @@ def _load_sources(args):
     return []
 
 
-def append_inspiration(draft_path, query, sources, notes):
+def append_refs(refs_path, query, sources, notes):
     stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    date = time.strftime("%Y-%m-%d")
     lines = [
         "",
-        "## 联网启发记录",
-        f"- 时间：{stamp}",
-        f"- 查询：{query}",
-        f"- 备注：{notes}",
-        "- 来源：",
+        "## Web Inspiration Log",
+        f"- Time: {stamp}",
+        f"- Query: {query}",
+        f"- Notes: {notes}",
+        "- Sources:",
     ]
     if not sources:
-        lines.append("  - （未提供来源明细）")
+        lines.append("  - (no sources provided)")
     else:
         for item in sources:
-            title = item.get("title", "未命名来源")
+            title = item.get("title", "untitled")
             url = item.get("url", "")
-            summary = item.get("summary", "")
-            lines.append(f"  - {title} | {url} | {summary}")
-    draft = pathlib.Path(draft_path)
-    if not draft.exists():
-        draft.write_text("# MathProve 草稿\n", encoding="utf-8")
-    with draft.open("a", encoding="utf-8") as f:
+            purpose = item.get("purpose") or item.get("summary") or notes or ""
+            lines.append(f"  - {title} | {url} | {date} | {purpose}")
+    refs = pathlib.Path(refs_path)
+    refs.parent.mkdir(parents=True, exist_ok=True)
+    if not refs.exists():
+        refs.write_text(
+            "# References Log\n\n记录外部来源（标题 | 链接 | 访问日期 | 用途）\n",
+            encoding="utf-8",
+        )
+    with refs.open("a", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="记录联网启发结果")
-    parser.add_argument("--query", required=True, help="检索问题")
-    parser.add_argument("--sources-json", help="来源 JSON 字符串")
-    parser.add_argument("--sources-file", help="来源 JSON 文件")
-    parser.add_argument("--notes", default="", help="补充说明")
-    parser.add_argument("--draft", default="draft.md", help="草稿路径")
-    parser.add_argument("--log", help="日志路径（JSONL）")
+    parser = argparse.ArgumentParser(description="Record web inspiration results")
+    parser.add_argument("--query", required=True, help="Search query")
+    parser.add_argument("--sources-json", help="Sources JSON string")
+    parser.add_argument("--sources-file", help="Sources JSON file")
+    parser.add_argument("--notes", default="", help="Notes")
+    parser.add_argument(
+        "--refs",
+        default=str(references_dir() / "refs.md"),
+        help="References log path",
+    )
+    parser.add_argument("--log", help="Log path (JSONL)")
     args = parser.parse_args()
 
     sources = _load_sources(args)
-    append_inspiration(args.draft, args.query, sources, args.notes)
+    append_refs(args.refs, args.query, sources, args.notes)
     log_event({"event": "web_inspiration", "query": args.query, "count": len(sources)}, log_path=args.log)
-    print(json.dumps({"status": "success", "draft": args.draft}, ensure_ascii=False))
+    print(json.dumps({"status": "success", "refs": args.refs}, ensure_ascii=False))
 
 
 if __name__ == "__main__":
