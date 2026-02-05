@@ -70,6 +70,12 @@ python scripts/final_audit.py \
 python scripts/draft_logger.py --draft draft.md --step-file one_step.json
 ```
 
+## 工作区与 run_dir
+- 运行产物默认写入 `../mathprove_workspace/`（相对 `skill/`），并自动创建 `run_YYYYMMDD_HHMMSS_xxx/` 子目录。
+- 可在 `skill/config.yaml` 中设置 `workspace_dir` 覆盖默认值。
+- 可通过 CLI 参数 `--workspace-dir` 或 `--run-dir` 指定工作区/运行目录。
+- `run_dir` 内含 `logs/`、`draft/`、`evidence/`、`audit/`、`magi/`、`sympy/`、`lean/`、`plan/` 等子目录。
+
 ## 工作流状态机
 BOOTSTRAP → ROUTE_CHECK → MATH_MAGI_PLAN → STEP_EXECUTE → VERIFY → AUDIT → DRAFT_COMMIT → FINAL_RESPONSE
 

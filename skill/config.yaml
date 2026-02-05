@@ -2,6 +2,8 @@ skill:
   name: mathprove
   version: "3.0.0"
 
+workspace_dir: "../mathprove_workspace/"
+
 paths:
   python: python
   lean: lean

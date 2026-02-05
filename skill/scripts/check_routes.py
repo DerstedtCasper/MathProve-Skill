@@ -14,6 +14,14 @@ except ImportError:  # pragma: no cover
     from logger import log_event
 
 try:
+    from ..runtime.workspace_manager import ensure_run_dir, run_path
+except Exception:  # pragma: no cover
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from runtime.workspace_manager import ensure_run_dir, run_path
+try:
     from ..runtime.config_loader import load_config
     from ..runtime.routes import apply_subagent_auto_enable
 except Exception:  # pragma: no cover - direct script execution
@@ -162,8 +170,14 @@ def _check_subagent(cfg: dict, missing: list[dict]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="检查 MathProve 路由与依赖")
+    parser.add_argument("--run-dir", help="运行目录（工作区内）")
+    parser.add_argument("--workspace-dir", help="工作区根目录（缺省则使用配置/默认值）")
     parser.add_argument("--log", help="日志路径（JSONL）")
     args = parser.parse_args()
+
+    run_dir = ensure_run_dir(args.run_dir, args.workspace_dir)
+    if not args.log:
+        args.log = str(run_path(run_dir, "logs/tool_calls.log"))
 
     cfg = apply_subagent_auto_enable(load_config())
     missing: list[dict] = []

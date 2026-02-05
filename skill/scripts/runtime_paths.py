@@ -13,6 +13,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+try:
+    from ..runtime.workspace_manager import ensure_run_dir
+except Exception:  # pragma: no cover
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from runtime.workspace_manager import ensure_run_dir
 
 def _walk_up(start: Path) -> list[Path]:
     out: list[Path] = []
@@ -67,19 +75,11 @@ def references_dir() -> Path:
 
 
 def logs_dir() -> Path:
-    sr = skill_root()
-    candidate = sr / "logs"
-    if candidate.exists():
-        return candidate
-    rr = repo_root()
-    return rr / "logs"
+    run_dir = ensure_run_dir()
+    return run_dir / "logs"
 
 
 def subagent_tasks_dir() -> Path:
-    sr = skill_root()
-    candidate = sr / "subagent_tasks"
-    if candidate.exists():
-        return candidate
-    rr = repo_root()
-    return rr / "subagent_tasks"
+    run_dir = ensure_run_dir()
+    return run_dir / "subagent_tasks"
 

@@ -115,6 +115,7 @@ def _deep_merge(base: dict, override: dict) -> dict:
 def default_config() -> dict:
     return {
         "skill": {"name": "mathprove", "version": "3.0.0"},
+        "workspace_dir": "../mathprove_workspace/",
         "paths": {"python": "python", "lean": "lean", "lake": "lake"},
         "routes": {
             "sympy": {"enabled": True, "python": "python", "timeout_seconds": 20},

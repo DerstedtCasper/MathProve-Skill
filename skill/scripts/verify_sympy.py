@@ -16,6 +16,15 @@ try:
 except ImportError:  # pragma: no cover
     from runtime_paths import assets_dir
 
+try:
+    from ..runtime.workspace_manager import ensure_run_dir, run_path
+except Exception:  # pragma: no cover
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from runtime.workspace_manager import ensure_run_dir, run_path
+
 def _read_text(path):
     return pathlib.Path(path).read_text(encoding="utf-8")
 
@@ -96,8 +105,15 @@ def main():
     parser.add_argument("--timeout", type=int, default=10, help="超时秒数")
     parser.add_argument("--python", help="指定 Python 路径执行 SymPy")
     parser.add_argument("--retries", type=int, default=0, help="失败重试次数")
+    parser.add_argument("--run-dir", help="运行目录（工作区内）")
+    parser.add_argument("--workspace-dir", help="工作区根目录（缺省则使用配置/默认值）")
+    parser.add_argument("--out", help="输出结果 JSON 文件路径")
     parser.add_argument("--log", help="日志路径（JSONL）")
     args = parser.parse_args()
+
+    run_dir = ensure_run_dir(args.run_dir, args.workspace_dir)
+    if not args.log:
+        args.log = str(run_path(run_dir, "logs/tool_calls.log"))
 
     if args.code:
         code = args.code
@@ -127,7 +143,12 @@ def main():
     if result is None:
         result = {"status": "error", "error_type": "Unknown", "message": "未执行"}
     result["attempts"] = attempts
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    output_json = json.dumps(result, ensure_ascii=False, indent=2)
+    if args.out:
+        out_path = run_path(run_dir, args.out) if not pathlib.Path(args.out).is_absolute() else pathlib.Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(output_json, encoding="utf-8")
+    print(output_json)
 
 
 if __name__ == "__main__":

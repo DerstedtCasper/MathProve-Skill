@@ -15,6 +15,14 @@ except ImportError:  # pragma: no cover
     from runtime_paths import logs_dir, subagent_tasks_dir
 
 try:
+    from ..runtime.workspace_manager import ensure_run_dir, run_path
+except Exception:  # pragma: no cover
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from runtime.workspace_manager import ensure_run_dir, run_path
+try:
     from ..runtime.config_loader import load_config
     from ..runtime.routes import apply_subagent_auto_enable
     from ..runtime.magi import run_round, collect_votes, revise_plan
@@ -181,10 +189,30 @@ def main() -> int:
     parser.add_argument("--problem-file", help="问题文本或 JSON 文件")
     parser.add_argument("--steps-out", default="steps.json", help="输出 steps.json 路径")
     parser.add_argument("--draft", default="draft.md", help="草稿路径")
+    parser.add_argument("--run-dir", help="运行目录（工作区内）")
+    parser.add_argument("--workspace-dir", help="工作区根目录（缺省则使用配置/默认值）")
     parser.add_argument("--max-rounds", type=int, default=3, help="最大 Magi 迭代轮数")
     parser.add_argument("--force-veto", action="store_true", help="强制制造 veto（用于测试）")
     parser.add_argument("--log", help="日志路径（JSONL）")
     args = parser.parse_args()
+
+    run_dir = ensure_run_dir(args.run_dir, args.workspace_dir)
+    if not args.log:
+        args.log = str(run_path(run_dir, "logs/tool_calls.log"))
+
+    steps_out = Path(args.steps_out)
+    if not steps_out.is_absolute():
+        if args.steps_out == "steps.json":
+            steps_out = run_path(run_dir, "plan/steps.json")
+        else:
+            steps_out = run_path(run_dir, args.steps_out)
+
+    draft_path = Path(args.draft)
+    if not draft_path.is_absolute():
+        if args.draft == "draft.md":
+            draft_path = run_path(run_dir, "draft/steps_draft.md")
+        else:
+            draft_path = run_path(run_dir, args.draft)
 
     problem, seed_steps = _load_problem(args)
     route = route_problem(problem) if problem else "hybrid"
@@ -196,7 +224,7 @@ def main() -> int:
 
     cfg = apply_subagent_auto_enable(load_config())
     rounds: list[dict] = []
-    logs_path = logs_dir() / f"magi_session_{time.strftime('%Y%m%d_%H%M%S')}.jsonl"
+    logs_path = run_path(run_dir, f"logs/magi_session_{time.strftime('%Y%m%d_%H%M%S')}.jsonl")
 
     context = {"steps": steps, "route": route}
     status = "ok"
@@ -216,14 +244,15 @@ def main() -> int:
         context = revise_plan(record, vote.get("veto_reasons") or [])
 
     steps_payload = {"problem": problem, "steps": context.get("steps") or steps, "magi_status": status}
-    Path(args.steps_out).write_text(json.dumps(steps_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    steps_out.parent.mkdir(parents=True, exist_ok=True)
+    steps_out.write_text(json.dumps(steps_payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    draft_path = Path(args.draft)
     if not draft_path.exists():
+        draft_path.parent.mkdir(parents=True, exist_ok=True)
         draft_path.write_text("# MathProve 草稿\n", encoding="utf-8")
     _append_draft_summary(draft_path, status, rounds)
 
-    summary_path = logs_dir() / "magi_summary.md"
+    summary_path = run_path(run_dir, "logs/magi_summary.md")
     emit_md_summary(rounds, summary_path, status, note="auto-generated")
 
     subagent_info: dict = {}
@@ -233,7 +262,7 @@ def main() -> int:
 
     output = {
         "status": status,
-        "steps": str(Path(args.steps_out)),
+        "steps": str(steps_out),
         "draft": str(draft_path),
         "logs": str(logs_path),
         "subagent": subagent_info,

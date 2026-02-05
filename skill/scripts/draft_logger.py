@@ -14,6 +14,15 @@ try:
 except ImportError:  # pragma: no cover - 兼容脚本直接运行
     from runtime_paths import assets_dir
 
+try:
+    from ..runtime.workspace_manager import ensure_run_dir, run_path
+except Exception:  # pragma: no cover
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from runtime.workspace_manager import ensure_run_dir, run_path
+
 
 def _load_step(args):
     if args.step_json:
@@ -104,6 +113,7 @@ def append_step(draft_path, step):
     lines.append(f"- 记录时间：{stamp}")
     lines.append("")
     draft = pathlib.Path(draft_path)
+    draft.parent.mkdir(parents=True, exist_ok=True)
     if not draft.exists():
         tpl = assets_dir() / "templates" / "draft_template.md"
         if tpl.exists():
@@ -128,6 +138,8 @@ def main():
     parser.add_argument("--evidence-path", help="证据路径")
     parser.add_argument("--evidence-digest", help="证据摘要/哈希")
     parser.add_argument("--notes", default="", help="备注")
+    parser.add_argument("--run-dir", help="运行目录（工作区内）")
+    parser.add_argument("--workspace-dir", help="工作区根目录（缺省则使用配置/默认值）")
     parser.add_argument(
         "--allow-unverified",
         action="store_true",
@@ -135,6 +147,18 @@ def main():
     )
     parser.add_argument("--log", help="日志路径（JSONL）")
     args = parser.parse_args()
+
+    run_dir = ensure_run_dir(args.run_dir, args.workspace_dir)
+    if not args.log:
+        args.log = str(run_path(run_dir, "logs/tool_calls.log"))
+
+    draft_path = pathlib.Path(args.draft)
+    if not draft_path.is_absolute():
+        if args.draft == "draft.md":
+            draft_path = run_path(run_dir, "draft/proof_draft.md")
+        else:
+            draft_path = run_path(run_dir, args.draft)
+    args.draft = str(draft_path)
 
     step = _load_step(args)
     if not step.get("id") or not step.get("goal"):

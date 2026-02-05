@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from pathlib import Path
 from typing import Any
+
+try:
+    from ..config_loader import detect_skill_root
+except Exception:  # pragma: no cover
+    from runtime.config_loader import detect_skill_root
 
 from .roles import DEFAULT_ROLES
 
@@ -17,11 +23,33 @@ def _missing_expected_evidence(steps: list[dict]) -> list[str]:
     return missing
 
 
+def _load_prompts() -> tuple[dict[str, str], list[str]]:
+    root = detect_skill_root()
+    prompt_dir = root / "assets" / "magi_prompts"
+    files = {
+        "melchior": prompt_dir / "melchior_system.txt",
+        "balthasar": prompt_dir / "balthasar_system.txt",
+        "casper": prompt_dir / "casper_system.txt",
+    }
+    prompts: dict[str, str] = {}
+    missing: list[str] = []
+    for key, path in files.items():
+        if path.exists():
+            prompts[key] = path.read_text(encoding="utf-8")
+        else:
+            prompts[key] = ""
+            missing.append(str(path))
+    return prompts, missing
+
+
 def run_round(problem: str, context: dict, force_veto: bool = False) -> dict:
+    prompts, missing_prompts = _load_prompts()
     steps = context.get("steps") or []
     round_record: dict[str, Any] = {
         "problem": problem,
         "steps": steps,
+        "prompts": {k: {"chars": len(v)} for k, v in prompts.items()},
+        "prompt_missing": missing_prompts,
         "roles": {},
         "revised_plan_required": False,
     }

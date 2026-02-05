@@ -25,6 +25,14 @@ try:
 except ImportError:  # pragma: no cover
     from runtime_paths import assets_dir, skill_root
 
+try:
+    from ..runtime.workspace_manager import ensure_run_dir, run_path
+except Exception:  # pragma: no cover
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from runtime.workspace_manager import ensure_run_dir, run_path
 _BASE_DIR = skill_root()
 if str(_BASE_DIR) not in sys.path:
     sys.path.append(str(_BASE_DIR))
@@ -352,7 +360,8 @@ def _render_steps_section(steps: list[dict], report: list[dict]) -> str:
 
 
 def _render_solution(problem: str | None, steps: list[dict], report: list[dict], audit_status: str, audit_report: str) -> str:
-    tpl_path = assets_dir() / "templates" / "solution_template.md"
+    proof_tpl = assets_dir() / "proof_template.md"
+    tpl_path = proof_tpl if proof_tpl.exists() else (assets_dir() / "templates" / "solution_template.md")
     tpl = _load_template(tpl_path)
     if not tpl:
         # Fallback: minimal output.
@@ -365,6 +374,7 @@ def _render_solution(problem: str | None, steps: list[dict], report: list[dict],
 
     steps_section = _render_steps_section(steps, report)
     out = tpl.replace("{{STEPS_SECTION}}", steps_section)
+    out = out.replace("{{PROBLEM}}", problem or "未提供")
     out = out.replace("{{AUDIT_STATUS}}", audit_status)
     out = out.replace("{{AUDIT_REPORT}}", audit_report)
     return out.strip() + "\n"
@@ -572,6 +582,8 @@ def main() -> None:
     parser.add_argument("--lean-cwd", help="Lean4 默认工作目录（推荐：Lake+Mathlib 工程）")
     parser.add_argument("--lean-ephemeral", action="store_true", help="Lean4 执行使用临时工作区（反污染）")
     parser.add_argument("--lean-watchdog-timeout", type=int, default=0, help="Lean4 文件模式无输出超时秒数")
+    parser.add_argument("--run-dir", help="运行目录（工作区内）")
+    parser.add_argument("--workspace-dir", help="工作区根目录（缺省则使用配置/默认值）")
     parser.add_argument("--log", help="日志路径（JSONL）")
 
     # Reverse gate (Lean4 strict gate).
@@ -587,6 +599,23 @@ def main() -> None:
     parser.add_argument("--lean-gate-no-mathlib", action="store_true", help="reverse gate 不使用 Lake+Mathlib（不推荐）")
 
     args = parser.parse_args()
+
+    run_dir = ensure_run_dir(args.run_dir, args.workspace_dir)
+    if not args.log:
+        args.log = str(run_path(run_dir, "logs/tool_calls.log"))
+
+    steps_path = pathlib.Path(args.steps)
+    if not steps_path.is_absolute():
+        steps_path = run_path(run_dir, args.steps)
+    args.steps = str(steps_path)
+
+    solution_path = pathlib.Path(args.solution)
+    if not solution_path.is_absolute():
+        if args.solution == "Solution.md":
+            solution_path = run_path(run_dir, "audit/Solution.md")
+        else:
+            solution_path = run_path(run_dir, args.solution)
+    args.solution = str(solution_path)
 
     payload = _read_json(args.steps)
     steps = payload.get("steps") or []

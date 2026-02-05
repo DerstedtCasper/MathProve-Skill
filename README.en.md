@@ -70,6 +70,12 @@ Append a single verified step:
 python scripts/draft_logger.py --draft draft.md --step-file one_step.json
 ```
 
+## Workspace & run_dir
+- Runtime artifacts default to `../mathprove_workspace/` (relative to `skill/`) and an auto-created `run_YYYYMMDD_HHMMSS_xxx/` folder.
+- Override via `workspace_dir` in `skill/config.yaml`.
+- CLI overrides: `--workspace-dir` or `--run-dir`.
+- Each `run_dir` contains `logs/`, `draft/`, `evidence/`, `audit/`, `magi/`, `sympy/`, `lean/`, `plan/`.
+
 ## State machine
 BOOTSTRAP → ROUTE_CHECK → MATH_MAGI_PLAN → STEP_EXECUTE → VERIFY → AUDIT → DRAFT_COMMIT → FINAL_RESPONSE
 
