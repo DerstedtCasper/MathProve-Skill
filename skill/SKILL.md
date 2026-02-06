@@ -1,29 +1,29 @@
-﻿````markdown
 ---
 name: mathprove-skill
-version: 0.5.0
 description: |
   面向复杂数学证明/推导/等价变形的“分步-工具验证-形式化门控”技能。强制以步骤为单位执行：
   (1) 每个 step 先触发 MAGI 并行共识决策（讨论方案与风险）；
   (2) 再进入 SymPy 与 Lean4 的函数级验证；
   (3) 只有当 MAGI=APPROVED 且 SymPy&Lean4 均通过并附带可复核证据时，才允许把该 step 写入草稿并进入下一个 step；
   (4) 最终通过 final_audit 生成审计报告与 Solution.md。
-triggers:
-  - "证明"
-  - "形式化验证"
-  - "Lean4"
-  - "SymPy"
-  - "推导"
-  - "等价变形"
-  - "prove"
-  - "formalize"
-tags:
-  - math
-  - theorem-proving
-  - sympy
-  - lean4
-  - verification
-  - magi
+metadata:
+  version: 0.5.0
+  triggers:
+    - "证明"
+    - "形式化验证"
+    - "Lean4"
+    - "SymPy"
+    - "推导"
+    - "等价变形"
+    - "prove"
+    - "formalize"
+  tags:
+    - math
+    - theorem-proving
+    - sympy
+    - lean4
+    - verification
+    - magi
 ---
 
 # MathProve Skill
@@ -203,7 +203,7 @@ python scripts/magi_plan.py \
   --assumptions assumptions.md \
   --steps plan/steps.json \
   --out magi/step_001_vote.json
-````
+```
 
 ### 4.4 输出要求（你必须解析并执行）
 
