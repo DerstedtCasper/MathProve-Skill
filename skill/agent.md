@@ -233,3 +233,69 @@ MAGI 的三个子人格必须满足：
 
 当你感到“已经很明显正确”时，恰恰是你最容易跳过验证的时刻。  
 你的默认策略必须是：**先证据，后结论；先门控，后落盘；先审计，后终局。**
+
+---
+
+## 9. v1.0 核心运行时架构（给编排者的操作指南）
+
+v1.0 引入了以下核心运行时模块，你**必须**通过它们来管理证明流程，而不是手动维护状态。
+
+### 9.1 ProofSearchTree — 状态机管理
+
+```python
+from skill.runtime.proof_tree import ProofSearchTree, NodeStatus, Phase
+```
+
+- **创建树**: `tree = ProofSearchTree(run_id)` → 自动初始化 Phase.INIT
+- **添加节点**: `tree.add_node("S1")` / `tree.add_node("S1.1", parent_id="S1")`
+- **推进状态**: `tree.advance("S1", NodeStatus.MAGI_APPROVED)` — 非法转移抛 ValueError
+- **回滚**: `tree.backtrack("S1")` — 递归标记后代 FAILED，重置 S1 为 PENDING
+- **持久化**: `tree.save("status.json")` / `tree = ProofSearchTree.load("status.json")`
+
+你**必须**使用 ProofSearchTree 而不是手动编辑 status.json。
+
+### 9.2 ErrorClassifier — 错误分类与恢复
+
+```python
+from skill.runtime.error_classifier import classify, suggest_fix, format_feedback_prompt, RetryBudget
+```
+
+- **分类**: `error = classify(stderr, "lean")` → StructuredError(category=SYNTAX/LOGIC/ENVIRONMENT)
+- **修复建议**: `suggest_fix(error)` → 填充 error.suggestion
+- **反馈 Prompt**: `format_feedback_prompt(error, "S1")` → 标准化 MAGI 反馈
+- **重试预算**: `budget = RetryBudget("S1")` → `budget.can_retry("lean")` / `budget.consume("lean")`
+
+当 `budget.is_exhausted()` 时，你**必须**停止重试并生成 FAILURE_REPORT。
+
+### 9.3 ParallelRunner — 并行候选探索
+
+```python
+from skill.runtime.parallel_runner import ParallelRunner, CandidateBranch
+```
+
+- 当某步卡住时，可让 MAGI 生成 N 个候选策略
+- 每个候选封装为 `CandidateBranch(branch_id, code, engine)`
+- `runner = ParallelRunner(max_workers=4, timeout=60)`
+- `log = runner.run_candidates("S1", candidates)` — 首胜取消其余
+- 每个分支在**物理隔离**的临时目录中运行
+
+### 9.4 SafeVerify — 终极审计
+
+```python
+from skill.runtime.safe_verify import run_audit, scan_forbidden_tokens
+```
+
+- 在 final_audit 阶段**必须**调用 SafeVerify
+- `scan_forbidden_tokens(source)` — 检测 sorry/admit/partial/unsafe
+- `run_audit(lean_files, theorem_names, import_module)` — 完整审计流水线
+- 任何 `sorryAx` 检测 → 立即判定不通过
+
+### 9.5 Orchestrator — 一键编排（可选）
+
+```python
+from skill.runtime.orchestrator import Orchestrator, OrchestratorConfig
+```
+
+- `orch = Orchestrator(OrchestratorConfig(enable_safe_verify=True))`
+- `result = orch.run(problem, steps)` — 自动执行完整流水线
+- 集成上述所有模块：ProofSearchTree + ErrorClassifier + ParallelRunner + SafeVerify

@@ -7,7 +7,7 @@ description: |
   (3) 只有当 MAGI=APPROVED 且 SymPy&Lean4 均通过并附带可复核证据时，才允许把该 step 写入草稿并进入下一个 step；
   (4) 最终通过 final_audit 生成审计报告与 Solution.md。
 metadata:
-  version: 0.5.0
+  version: 1.0.0
   triggers:
     - "证明"
     - "形式化验证"
@@ -507,3 +507,88 @@ python scripts/final_audit.py --run_dir WORKSPACE/runs/<run_id> --out audit/audi
 * [ ] 每个 step：step_i.md 写入 + proof_draft.md append
 * [ ] final_audit 生成 audit.json 与 Solution.md，且 audit=APPROVED 才输出最终结论
 
+---
+
+## 16. v1.0 核心运行时模块（Runtime Modules）
+
+以下模块位于 `skill/runtime/`，由 Orchestrator 编排调用。
+
+### 16.1 ProofSearchTree (`proof_tree.py`)
+- 证明搜索树状态机，管理所有 step 的生命周期
+- `NodeStatus` 枚举：PENDING → MAGI_APPROVED → SYMPY_PASSED → LEAN_PASSED → PASSED / FAILED
+- `Phase` 枚举：INIT → PLANNING → STEP_LOOP → AUDITING → DONE / FAILED
+- 合法状态转移矩阵，非法转移抛 ValueError
+- `backtrack()` 支持回滚到任意节点并递归标记后代失败
+- `save()` / `load()` 与 status.json 兼容
+
+### 16.2 ErrorClassifier (`error_classifier.py`)
+- 三级错误分类：SYNTAX / LOGIC / ENVIRONMENT
+- 按错误来源（lean/sympy/magi）匹配不同的正则模式
+- `RetryBudget` 追踪每步的重试预算（默认 magi:2, sympy:3, lean:5）
+- `suggest_fix()` 生成修复建议 Prompt 片段
+- `format_feedback_prompt()` 格式化为 MAGI 反馈 Prompt
+
+### 16.3 ParallelRunner (`parallel_runner.py`)
+- N 分支并行验证 + 首胜取消
+- `ProcessPoolExecutor` 驱动，每个分支在独立 tempdir 中运行
+- `SearchTreeLog` 以递归 JSON 结构记录搜索树
+- 完全物理隔离：文件、缓存、进程独立
+
+### 16.4 SafeVerify (`safe_verify.py`)
+- Lean4 白盒审计模块
+- 违禁词扫描：sorry / admit / partial / unsafe（剥离注释后 word-boundary 匹配）
+- 公理溯源：生成独立 audit.lean 并解析 `#print axioms` 输出
+- `sorryAx` 检测 → 立即判定不通过
+- 可选零缓存环境重放（`enable_replay`）
+
+### 16.5 Orchestrator (`orchestrator.py`)
+- 顶层编排循环，集成上述所有模块
+- `Orchestrator.run(problem, steps)` → OrchestratorResult
+- 阶段 A：初始化 ProofSearchTree + RetryBudget
+- 阶段 B：逐步执行（subprocess 物理隔离）
+- 阶段 C：失败处理（classify → suggest → retry/backtrack）
+- 阶段 D：SafeVerify 审计
+
+---
+
+## 17. 目录结构速查
+
+```
+skill/                         # Skill 根目录（挂载入口）
+├── SKILL.md                   # Skill 契约与 SOP
+├── agent.md                   # Agent 顶级约束宪章
+├── config.yaml                # 默认配置
+├── runtime/                   # 运行时核心模块
+│   ├── proof_tree.py          # 证明搜索树状态机
+│   ├── error_classifier.py    # 三级错误分类器
+│   ├── parallel_runner.py     # 并行候选竞速框架
+│   ├── safe_verify.py         # Lean4 白盒审计
+│   ├── orchestrator.py        # 顶层编排循环
+│   ├── config_loader.py       # 配置加载
+│   ├── workspace_manager.py   # 工作区管理
+│   ├── workspace.py           # EphemeralWorkspace
+│   ├── watchdog.py            # 子进程超时监控
+│   ├── tactic_generator.py    # 策术建议（启发式）
+│   ├── citation_retriever.py  # 文献检索
+│   ├── routes.py              # 路由判断
+│   ├── sympy_verifier.py      # SymPy 包装
+│   └── magi/                  # MAGI 协议
+│       ├── protocol.py        # 投票协议
+│       ├── roles.py           # 角色定义
+│       └── emit.py            # 输出工具
+├── scripts/                   # CLI 脚本入口
+│   ├── magi_plan.py           # MAGI 全局规划
+│   ├── step_router.py         # 步骤路由
+│   ├── final_audit.py         # 终局审计
+│   ├── verify_lean.py         # Lean4 验证
+│   ├── verify_sympy.py        # SymPy 验证
+│   ├── lean_repl_client.py    # Lean REPL 客户端
+│   ├── draft_logger.py        # 草稿写入
+│   └── ...                    # 其他辅助脚本
+├── assets/                    # 静态资源
+│   ├── lean/                  # Lean 模板
+│   ├── magi_prompts/          # MAGI 角色提示词
+│   ├── templates/             # 文档模板
+│   └── step_schema.json       # 步骤 JSON Schema
+└── references/                # 参考资料
+```
