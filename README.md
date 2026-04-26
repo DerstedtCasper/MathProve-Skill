@@ -1,122 +1,194 @@
 # MathProve-Skill
 
-语言 / Language: [中文](README.md) | [English](docs/README.en.md)
+Language / 语言: **English** | [中文](docs/README.zh-CN.md)
 
-MathProve 是一个神经符号数学验证流水线，集成 SymPy 与 Lean4，为数学推理提供可审计的证据链。目标是把自然语言推导映射为可执行步骤，并将验证结果汇总为 `Solution.md`。
+MathProve-Skill is a research-oriented proof engineering skill for long-horizon mathematical formalization. It combines Lean4, SymPy, staged agent orchestration, evidence-weighted candidate selection, and final audit gates to turn informal mathematical work into restartable, inspectable, and partially machine-checkable proof artifacts.
 
-## 核心特性
+The project is designed for research settings where correctness, replayability, and failure diagnosis matter more than producing fluent proof sketches. It treats proof construction as an auditable pipeline: statements are locked, assumptions are recorded, candidate branches are compared by evidence, and promoted results must survive explicit verification gates.
 
-- **证明搜索树 (ProofSearchTree)**：基于状态机的证明步骤生命周期管理，支持回滚与序列化
-- **MATH MAGI 规划**：三角色投票 + 一票否决，生成结构化 `steps.json`
-- **三级错误分类 (ErrorClassifier)**：SYNTAX / LOGIC / ENVIRONMENT，自动重试与 Prompt 重构
-- **并行候选竞速 (ParallelRunner)**：N 分支并行验证，首胜取消，物理隔离
-- **SafeVerify 白盒审计**：Lean4 违禁词扫描 + `#print axioms` 公理溯源 + 可选环境重放
-- **Orchestrator 编排循环**：集成上述所有模块的一键编排入口
-- **严格门禁**：仅 `status=passed` 且附带证据的 step 可写入 `draft.md`
-- **审计闭环**：`final_audit.py` 统一产出审计结果与 `Solution.md`
+## Research Scope
 
-## 安装
+MathProve targets mathematical and mathematical-physics workflows such as:
 
-### 作为独立 CLI 工具使用
-```bash
-git clone https://github.com/DerstedtCasper/MathProve-Skill.git MathProve
-cd MathProve
+- formalizing theorem statements from research notes or manuscripts;
+- decomposing difficult arguments into theorem variants, lemma DAGs, skeletons, and line maps;
+- searching for algebraic, analytic, combinatorial, representation-theoretic, braid/YBE, or quantum-group proof routes;
+- running exact symbolic checks with explicit assumptions;
+- using Lean4/Mathlib evidence where available, and recording precise blockers where unavailable;
+- maintaining proof memory across long campaigns instead of relying on a single chat transcript.
+
+MathProve does not treat natural-language plausibility as mathematical evidence. Agent votes, heuristic routes, and informal sketches can guide exploration, but they do not certify a theorem. Certification is reserved for kernel-checked artifacts, replayable symbolic computation, explicit counterexample search, or audited evidence packs.
+
+## Ultra v8 Overview
+
+The current v8 architecture upgrades the earlier MAGI + SymPy + Lean workflow into a long-horizon proof factory.
+
+Core additions include:
+
+- **Stage-gated proof factory**: problem lock, knowledge pack, notation gate, skeleton gate, line-map gate, lemma sprint, refutation, integration, final audit, and proof-memory update.
+- **Evidence-weighted promotion**: candidates are ranked by tool verification, dependency closure, refutation coverage, evidence completeness, maintainability, restartability, novelty, and cost sanity.
+- **Hard vetoes**: undefined symbols, unstated domains, theorem-statement drift, stale logs, missing evidence, non-skeleton `sorry`, Lean/SymPy failures, float-only exact proofs, and unaudited final claims fail closed.
+- **Context lake**: long proofs externalize state into indexed shards, handoff capsules, candidate packs, logs, and proof-memory events.
+- **MoE expert routing**: frontier/research/repeated-failure modes activate a fuller panel of formalizer, skeletonist, line mapper, librarian, tactic sprinter, algebraic verifier, refuter, repairer, integrator, auditor, and domain expert roles.
+- **No premature closure**: local context exhaustion is not a valid stopping condition. A campaign must end with a gate decision, counterexample, user-visible theorem repair, or replayable environment blocker.
+
+## Architecture
+
+```text
+MathProve-Skill/
+├── skill/
+│   ├── SKILL.md                  # Skill entrypoint and operational contract
+│   ├── agent.md                  # Proof-engineering constitution
+│   ├── config.yaml               # Default runtime and proof-factory configuration
+│   ├── runtime/
+│   │   ├── orchestrator.py        # High-level proof loop
+│   │   ├── proof_factory_v8.py    # Stage gates, scoring, vetoes, audit helpers
+│   │   ├── context_lake_v8.py     # Context shard and handoff utilities
+│   │   ├── moe_router_v8.py       # Stage/difficulty expert activation
+│   │   ├── safe_verify.py         # Lean-oriented safety checks
+│   │   ├── parallel_runner.py     # Parallel candidate execution
+│   │   └── magi/                  # Multi-role planning protocol
+│   ├── scripts/                   # Skill-local CLI entrypoints
+│   ├── references/                # Stage, routing, memory, and research protocols
+│   └── assets/                    # Schemas, templates, prompts, Lean assets
+├── scripts/                       # Compatibility wrappers
+├── tests/                         # Regression tests
+├── docs/
+│   ├── README.en.md
+│   ├── README.zh-CN.md
+│   └── optimization/              # v8 report, patch notes, pseudotest report
+└── runtime/                       # Compatibility runtime shims
 ```
 
-### 挂载为 Codex/Agent Skill
-建议挂载 `skill/` 目录，并保证目录名与 `SKILL.md` 中 `name: mathprove-skill` 一致：
+## Installation
+
+### Standalone repository
+
+```bash
+git clone https://github.com/DerstedtCasper/MathProve-Skill.git MathProve-Skill
+cd MathProve-Skill
+python -m pip install -r requirements-dev.txt
+```
+
+### Codex/Agent skill mount
+
+Mount the `skill/` directory as the skill root:
+
 ```powershell
 New-Item -ItemType Junction `
   -Path "$env:USERPROFILE\.codex\skills\mathprove" `
-  -Target "<repo_root>\skill"
+  -Target "D:\AI_studio\MathProve-Skill\skill"
 ```
 
-## 快速开始
+The skill metadata name is `mathprove-skill`; the mount directory may remain `mathprove` if that is the local convention used by the agent runtime.
 
-### 1) 路由检查（必需）
+## Quickstart
+
+### 1. Check local routes
+
 ```bash
 python scripts/check_routes.py
 ```
 
-### 2) MATH MAGI 规划（必需）
+This checks availability of configured symbolic, Lean, and optional orchestration routes.
+
+### 2. Generate a MAGI plan
+
 ```bash
-python scripts/magi_plan.py --problem "<问题文本>" --steps-out steps.json --draft draft.md
+python scripts/magi_plan.py \
+  --problem "Prove and verify: for every real x, (x+1)^2 = x^2 + 2*x + 1" \
+  --steps-out steps.json \
+  --draft draft.md
 ```
 
-### 3) 步骤路由与执行（必需）
+### 3. Route and execute proof steps
+
 ```bash
-python scripts/step_router.py --input "steps.json" --output "steps.routed.json" --explain
+python scripts/step_router.py \
+  --input steps.json \
+  --output steps.routed.json \
+  --explain
 ```
 
-### 4) Final Audit（必需）
+### 4. Run final audit
+
 ```bash
 python scripts/final_audit.py \
-  --steps "steps.routed.json" \
-  --solution "Solution.md" \
+  --steps steps.routed.json \
+  --solution Solution.md \
   --lean-cwd "<path-to-lean-project>" \
   --lean-gate
 ```
 
-### 5) 使用 Orchestrator（可选，一键编排）
-```python
-from skill.runtime.orchestrator import Orchestrator, OrchestratorConfig
+### 5. Exercise the v8 proof factory protocol
 
-orch = Orchestrator(OrchestratorConfig(enable_safe_verify=True))
-result = orch.run("证明: 对任意实数 x，(x+1)^2 = x^2+2x+1", steps)
-print(result.summary)
-```
-
-## 工作区与 run_dir
-- 运行产物默认写入 `../mathprove_workspace/`（相对 `skill/`），并自动创建 `run_YYYYMMDD_HHMMSS_xxx/` 子目录
-- 可在 `skill/config.yaml` 中设置 `workspace_dir` 覆盖默认值
-- `run_dir` 内含 `logs/`、`draft/`、`evidence/`、`audit/`、`magi/`、`sympy/`、`lean/`、`plan/` 等子目录
-
-## 工作流状态机
-```
-INIT → PLANNING → STEP_LOOP → AUDITING → DONE
-                      ↕                     ↕
-                   FAILED ←←←←←←←←←←←← FAILED
-```
-
-## 项目结构
-
-```
-MathProve-Skill/
-├── README.md                    # 本文件
-├── LICENSE                      # MIT License
-├── requirements-dev.txt         # 开发依赖
-├── skill/                       # ★ Skill 根目录（挂载入口）
-│   ├── SKILL.md                 # Skill 契约与 SOP
-│   ├── agent.md                 # Agent 顶级约束宪章
-│   ├── config.yaml              # 默认配置
-│   ├── runtime/                 # 运行时核心模块
-│   │   ├── proof_tree.py        # 证明搜索树状态机
-│   │   ├── error_classifier.py  # 三级错误分类器
-│   │   ├── parallel_runner.py   # 并行候选竞速框架
-│   │   ├── safe_verify.py       # Lean4 白盒审计
-│   │   ├── orchestrator.py      # 顶层编排循环
-│   │   ├── config_loader.py     # 配置加载
-│   │   ├── workspace_manager.py # 工作区管理
-│   │   ├── magi/                # MAGI 三角色协议
-│   │   └── ...
-│   ├── scripts/                 # CLI 脚本入口
-│   ├── assets/                  # 静态资源（模板、Schema、提示词）
-│   └── references/              # 参考资料
-├── scripts/                     # 兼容入口（代理到 skill/scripts/）
-├── tests/                       # 单元测试（117 tests）
-├── docs/                        # 文档
-│   ├── IMPL_PLAN.md             # 实现计划与进度
-│   ├── CONTRIBUTING.md          # 贡献指南
-│   └── design/                  # 设计文档
-├── docker/                      # Docker 配置
-└── runtime/                     # 兼容 shim（re-export skill.runtime）
-```
-
-## 测试
 ```bash
-python -m pytest --tb=short -q
-# 117 passed
+python skill/scripts/mathprove_v8_pseudotest.py
+python scripts/mathprove_v8_pseudotest.py
 ```
+
+## Run Artifacts
+
+Runtime artifacts are written outside the skill package by default. A typical run contains:
+
+```text
+mathprove_workspace/runs/<run_id>/
+├── problem.md
+├── problem_lock.md
+├── assumptions.md
+├── manifest.json
+├── status.json
+├── context_lake/
+├── knowledge/
+├── plan/
+├── candidates/
+├── magi/
+├── sympy/
+├── lean/
+├── memory/
+├── draft/
+├── audit/
+└── logs/
+```
+
+The package itself should remain immutable during a proof run. Temporary artifacts, logs, candidate packs, and handoff capsules belong in the workspace.
+
+## Verification Discipline
+
+MathProve distinguishes four levels of support:
+
+1. kernel-checked Lean or another accepted proof-assistant artifact;
+2. replayed exact symbolic computation with explicit assumptions;
+3. bounded or exhaustive counterexample search with recorded scope;
+4. human-readable derivation linked to auditable artifacts.
+
+Only these levels may support promoted mathematical claims. Brainstorming, majority votes, analogies, and hidden reasoning are exploratory signals, not proof certificates.
+
+## Development Checks
+
+The repository currently verifies with:
+
+```bash
+python -m py_compile skill/runtime/proof_factory_v8.py skill/runtime/context_lake_v8.py skill/runtime/moe_router_v8.py
+python skill/scripts/mathprove_v8_pseudotest.py
+python scripts/mathprove_v8_pseudotest.py
+python -m pytest -q
+```
+
+Latest local validation after the v8 merge:
+
+```text
+125 passed
+```
+
+## Documentation
+
+- [English README](docs/README.en.md)
+- [中文 README](docs/README.zh-CN.md)
+- [v8 deep optimization report](docs/optimization/DEEP_OPTIMIZATION_REPORT_V8.md)
+- [v8 patch notes](docs/optimization/PATCH_NOTES_V8.md)
+- [v8 pseudotest report](docs/optimization/PSEUDOTEST_REPORT_V8.json)
 
 ## License
+
 MIT License

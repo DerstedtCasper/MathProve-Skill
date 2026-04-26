@@ -1,150 +1,110 @@
-# MathProve
+# MathProve-Skill
 
-Language / 语言: [English](README.en.md) | [中文](README.md)
+Language / 语言: **English** | [中文](README.zh-CN.md)
 
-MathProve is a neuro-symbolic math verification pipeline that combines SymPy and Lean4 to provide an auditable evidence trail. The goal is to turn natural-language derivations into executable steps and summarize verified results in `Solution.md`.
+MathProve-Skill is a research-oriented proof engineering skill for long-horizon mathematical formalization. It combines Lean4, SymPy, staged agent orchestration, evidence-weighted candidate selection, and final audit gates to turn informal mathematical work into restartable, inspectable, and partially machine-checkable proof artifacts.
 
-## Highlights
-- **Hybrid routing**: switch between SymPy and Lean4 per step, with manual overrides.
-- **MATH MAGI planning**: three-role voting with veto, producing structured `steps.json`.
-- **Strict gates**: only `status=passed` steps with evidence can enter `draft.md`.
-- **Audit closed-loop**: `final_audit.py` produces the audit result and `Solution.md`.
-- **Auditable logs**: JSONL + Markdown summaries.
-- **Optional routes**: subagent dispatch and web inspiration logging.
+The project is intended for research workflows where correctness, replayability, and explicit failure modes are central. It treats theorem proving as a pipeline of durable artifacts rather than a single conversational answer.
+
+## Research Scope
+
+MathProve supports:
+
+- theorem statement formalization and assumption locking;
+- theorem-variant generation, lemma DAG construction, proof skeletons, and line maps;
+- Lean4/Mathlib-oriented proof attempts and static safety checks;
+- SymPy-based exact algebraic verification under explicit hypotheses;
+- refutation and boundary-case search;
+- long-horizon proof campaigns using context shards, candidate packs, handoff capsules, and proof-memory events.
+
+It is especially suitable for algebra, representation theory, braid/YBE problems, quantum-group calculations, symbolic identities, and mathematical-physics arguments that benefit from a bridge between informal structure and machine-checkable evidence.
+
+## Ultra v8 Architecture
+
+v8 upgrades MathProve into a proof factory with the following components:
+
+- **Stage gates**: problem lock, knowledge pack, notation, skeleton, line map, lemma sprint, refutation, integration, final audit, and proof-memory update.
+- **Evidence-weighted candidate selection**: tool verification, dependency closure, refutation coverage, evidence completeness, maintainability, restartability, novelty, and cost sanity are scored explicitly.
+- **Hard vetoes**: theorem drift, missing evidence, stale logs, non-skeleton `sorry`, Lean/SymPy failure, undefined domains, and unaudited final claims prevent promotion.
+- **Context lake**: long-running campaigns externalize context into indexed shards and handoff capsules.
+- **MoE routing**: difficult or frontier tasks activate a broader expert panel for formalization, line mapping, tactic search, refutation, repair, integration, and audit.
+- **Final audit discipline**: a theorem is not reported as proved until dependency closure, no-sorry checks, replay logs, and evidence coverage are accepted.
 
 ## Installation
 
-### As a standalone CLI tool
 ```bash
-git clone https://github.com/DerstedtCasper/MathProve-Skill.git MathProve
-cd MathProve
+git clone https://github.com/DerstedtCasper/MathProve-Skill.git MathProve-Skill
+cd MathProve-Skill
+python -m pip install -r requirements-dev.txt
 ```
 
-### Mount as a Codex/Agent Skill
-Mount the `skill/` directory and keep the directory name consistent with `name: mathprove` in `SKILL.md`:
+Mount as a Codex/Agent skill:
+
 ```powershell
 New-Item -ItemType Junction `
   -Path "$env:USERPROFILE\.codex\skills\mathprove" `
-  -Target "D:\AI_studio\MathProve\skill"
+  -Target "D:\AI_studio\MathProve-Skill\skill"
 ```
 
 ## Quickstart
 
-### 1) Bootstrap (optional)
-Generate local overrides and refs template:
-```bash
-python scripts/bootstrap.py
-```
-
-### 2) Route check (required)
-Validate SymPy/Lean4/Mathlib availability:
 ```bash
 python scripts/check_routes.py
-```
 
-### 3) MATH MAGI plan (required)
-```bash
-python scripts/magi_plan.py --problem "<problem text>" --steps-out steps.json --draft draft.md
-```
+python scripts/magi_plan.py \
+  --problem "Prove and verify: for every real x, (x+1)^2 = x^2 + 2*x + 1" \
+  --steps-out steps.json \
+  --draft draft.md
 
-### 4) Step routing & execution (required)
-```bash
 python scripts/step_router.py \
-  --input "steps.json" \
-  --output "steps.routed.json" \
+  --input steps.json \
+  --output steps.routed.json \
   --explain
-```
 
-### 5) Final audit (required)
-```bash
 python scripts/final_audit.py \
-  --steps "steps.routed.json" \
-  --solution "Solution.md" \
+  --steps steps.routed.json \
+  --solution Solution.md \
   --lean-cwd "<path-to-lean-project>" \
   --lean-gate
 ```
 
-### 6) Draft append (optional)
-Append a single verified step:
+Exercise the v8 protocol:
+
 ```bash
-python scripts/draft_logger.py --draft draft.md --step-file one_step.json
+python skill/scripts/mathprove_v8_pseudotest.py
+python scripts/mathprove_v8_pseudotest.py
 ```
 
-## Workspace & run_dir
-- Runtime artifacts default to `../mathprove_workspace/` (relative to `skill/`) and an auto-created `run_YYYYMMDD_HHMMSS_xxx/` folder.
-- Override via `workspace_dir` in `skill/config.yaml`.
-- CLI overrides: `--workspace-dir` or `--run-dir`.
-- Each `run_dir` contains `logs/`, `draft/`, `evidence/`, `audit/`, `magi/`, `sympy/`, `lean/`, `plan/`.
+## Repository Layout
 
-## State machine
-BOOTSTRAP → ROUTE_CHECK → MATH_MAGI_PLAN → STEP_EXECUTE → VERIFY → AUDIT → DRAFT_COMMIT → FINAL_RESPONSE
-
-## `steps.json` example
-```json
-{
-  "problem": "Prove and verify: for any real x, (x+1)^2 = x^2 + 2x + 1",
-  "steps": [
-    {
-      "id": "S1",
-      "goal": "Expand (x + 1)^2",
-      "engine": "sympy",
-      "expected_evidence": "sympy output: simplify(...) == 0",
-      "checker": {
-        "type": "sympy",
-        "code": "import sympy as sp\nx = sp.Symbol('x')\nexpr = (x + 1)**2\nassert sp.expand(expr) == x**2 + 2*x + 1\nprint('ok')"
-      }
-    },
-    {
-      "id": "S2",
-      "goal": "Formalize: right identity of addition on Nat",
-      "engine": "lean4",
-      "expected_evidence": "lean build success (no goals, no sorries)",
-      "checker": {
-        "type": "lean4",
-        "cmds": [
-          "import Mathlib",
-          "theorem S2 (n : Nat) : n + 0 = n := by simp"
-        ]
-      }
-    }
-  ]
-}
+```text
+skill/                 installable skill root
+skill/runtime/         orchestration, proof factory, verification helpers
+skill/scripts/         skill-local CLI tools
+skill/references/      stage protocols and research references
+skill/assets/          schemas, templates, prompts, Lean assets
+scripts/               compatibility wrappers
+tests/                 regression tests
+docs/optimization/     v8 report, patch notes, and pseudotest data
 ```
 
-## Configuration & routing
+## Verification
 
-### config.yaml / config.local.yaml
-- `skill/config.yaml`: defaults.
-- `skill/config.local.yaml`: local overrides (gitignored), created by `bootstrap.py`.
+Recommended checks:
 
-### Path overrides
-- SymPy interpreter: `final_audit.py --python` or `--sympy-python`
-- Lean4 client: `final_audit.py --lean-python`
-- Lean/Lake executables: `step.checker.lean_path` / `step.checker.lake_path`
-
-### Subagent route
-- Auto-enable when `routes.subagent.auto_enable=true`.
-- Task pack generation: `python scripts/subagent_tasks.py --steps steps.routed.json --out-dir ./tasks`
-
-## Web inspiration example
-Append web inspiration to `skill/references/refs.md`:
 ```bash
-python skill/scripts/web_inspiration.py \
-  --query "mathlib lemma for ring simplification" \
-  --sources-json "[{\"title\":\"Mathlib simp lemma\",\"url\":\"https://example.com\",\"summary\":\"used for ring simplification\"}]" \
-  --notes "selecting candidate lemmas"
+python -m py_compile skill/runtime/proof_factory_v8.py skill/runtime/context_lake_v8.py skill/runtime/moe_router_v8.py
+python skill/scripts/mathprove_v8_pseudotest.py
+python scripts/mathprove_v8_pseudotest.py
+python -m pytest -q
 ```
 
-## Repo layout
-- `skill/`: installable Skill root (recommended mount)
-  - `SKILL.md`: entry and hard rules
-  - `assets/`: schemas and templates
-  - `references/`: external references log
-  - `config.yaml` / `config.local.yaml`
-  - `runtime/`: runtime helpers
-  - `scripts/`: standard script entrypoints
-- `scripts/`: compatibility entrypoints (proxy to `skill/scripts/`)
-- `tests/`: unit tests
+Latest local validation:
+
+```text
+125 passed
+```
 
 ## License
+
 MIT License

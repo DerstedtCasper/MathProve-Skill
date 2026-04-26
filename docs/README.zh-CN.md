@@ -1,150 +1,160 @@
-# MathProve
+# MathProve-Skill
 
-语言 / Language: [中文](README.md) | [English](README.en.md)
+语言 / Language: [English](README.en.md) | **中文**
 
-MathProve 是一个神经符号数学验证流水线，集成 SymPy 与 Lean4，为数学推理提供可审计的证据链。目标是把自然语言推导映射为可执行步骤，并将验证结果汇总为 `Solution.md`。
+MathProve-Skill 是一个面向研究级数学形式化与证明工程的 Agent Skill。它将 Lean4、SymPy、阶段化 agent 编排、证据加权候选选择与最终审计门控结合起来，把非形式化数学推导推进为可恢复、可检查、可审计、部分可机器验证的证明工件。
 
-## 核心特性
-- **混合路由**：按步骤难度在 SymPy/Lean4 间切换，支持手工覆盖。
-- **MATH MAGI 规划**：三角色投票 + 一票否决，生成结构化 `steps.json`。
-- **严格门禁**：仅 `status=passed` 且附带证据的 step 可写入 `draft.md`。
-- **审计闭环**：`final_audit.py` 统一产出审计结果与 `Solution.md`。
-- **可审计日志**：JSONL + Markdown 摘要，便于追踪。
-- **可选路由**：subagent 分发与联网启发记录（refs.md）。
+本项目的目标不是生成流畅的证明文本，而是在长期研究任务中维持严格的证据纪律：先锁定定理陈述与假设，再分解为候选路线、lemma DAG、proof skeleton、line map、工具日志、候选包和最终审计结果。未经证据门控晋升的自然语言推断不被视为数学证明。
+
+## 研究定位
+
+MathProve 适用于以下工作：
+
+- 从研究笔记、论文草稿或自然语言命题中抽取形式化定理陈述；
+- 构造 theorem variants、lemma DAG、proof skeleton 与 line map；
+- 对代数、分析、组合、表示论、braid/YBE、量子群与数学物理推导进行路线探索；
+- 在显式假设下执行 SymPy 精确符号验证；
+- 使用 Lean4/Mathlib 做可回放的形式化尝试与静态安全检查；
+- 记录反例搜索、失败边界、环境阻塞与可复用 proof memory；
+- 将长程证明活动拆成可交接的 context shards、candidate packs 和 handoff capsules。
+
+MathProve 明确区分探索信号与证明证据。Agent 投票、启发式路线、类比和草稿可以引导搜索，但不能认证定理。可晋升结论必须绑定 kernel evidence、可回放符号计算、显式反例搜索或最终审计通过的证据包。
+
+## Ultra v8 架构
+
+v8 将早期的 MAGI + SymPy + Lean 工作流升级为长程 proof factory。
+
+核心机制包括：
+
+- **阶段门控**：problem lock、knowledge pack、notation gate、skeleton gate、line-map gate、lemma sprint、refutation、integration、final audit、proof-memory update。
+- **证据加权晋升**：按 tool verification、dependency closure、refutation coverage、evidence completeness、maintainability、restartability、novelty、cost sanity 评分。
+- **硬否决规则**：未定义符号、未声明定义域、定理陈述漂移、过期日志、缺失证据、非 skeleton `sorry`、Lean/SymPy 失败、以浮点计算冒充精确证明、未经审计的最终结论，均 fail closed。
+- **Context lake**：长任务将上下文外部化为 index、shards、handoff capsules、candidate packs、logs 与 proof-memory events。
+- **MoE 专家路由**：frontier/research/repeated-failure 模式会激活 formalizer、skeletonist、line mapper、librarian、tactic sprinter、algebraic verifier、refuter、repairer、integrator、auditor、domain expert 等角色。
+- **禁止过早收束**：局部上下文耗尽不是终止条件。任务必须以 gate decision、counterexample、用户可见的 theorem repair 或可回放环境阻塞结束。
 
 ## 安装
 
-### 作为独立 CLI 工具使用
 ```bash
-git clone https://github.com/DerstedtCasper/MathProve-Skill.git MathProve
-cd MathProve
+git clone https://github.com/DerstedtCasper/MathProve-Skill.git MathProve-Skill
+cd MathProve-Skill
+python -m pip install -r requirements-dev.txt
 ```
 
-### 挂载为 Codex/Agent Skill
-建议挂载 `skill/` 目录，并保证目录名与 `SKILL.md` 中 `name: mathprove` 一致：
+挂载为 Codex/Agent Skill：
+
 ```powershell
 New-Item -ItemType Junction `
   -Path "$env:USERPROFILE\.codex\skills\mathprove" `
-  -Target "D:\AI_studio\MathProve\skill"
+  -Target "D:\AI_studio\MathProve-Skill\skill"
 ```
+
+Skill 元数据名为 `mathprove-skill`；若本地 agent 运行时采用 `mathprove` 作为挂载目录名，也可以保持该目录约定。
 
 ## 快速开始
 
-### 1) Bootstrap（可选）
-生成本地覆盖配置与 refs 模板：
-```bash
-python scripts/bootstrap.py
-```
+### 1. 检查本地路由
 
-### 2) 路由检查（必需）
-检查 SymPy/Lean4/Mathlib 是否可用：
 ```bash
 python scripts/check_routes.py
 ```
 
-### 3) MATH MAGI 规划（必需）
+### 2. 生成 MAGI 规划
+
 ```bash
-python scripts/magi_plan.py --problem "<问题文本>" --steps-out steps.json --draft draft.md
+python scripts/magi_plan.py \
+  --problem "证明并验证：对任意实数 x，有 (x+1)^2 = x^2 + 2*x + 1" \
+  --steps-out steps.json \
+  --draft draft.md
 ```
 
-### 4) 步骤路由与执行（必需）
+### 3. 路由并执行证明步骤
+
 ```bash
 python scripts/step_router.py \
-  --input "steps.json" \
-  --output "steps.routed.json" \
+  --input steps.json \
+  --output steps.routed.json \
   --explain
 ```
 
-### 5) Final Audit（必需）
+### 4. 执行最终审计
+
 ```bash
 python scripts/final_audit.py \
-  --steps "steps.routed.json" \
-  --solution "Solution.md" \
+  --steps steps.routed.json \
+  --solution Solution.md \
   --lean-cwd "<path-to-lean-project>" \
   --lean-gate
 ```
 
-### 6) 草稿写入（按需）
-单步写入草稿示例：
+### 5. 运行 v8 协议伪测试
+
 ```bash
-python scripts/draft_logger.py --draft draft.md --step-file one_step.json
+python skill/scripts/mathprove_v8_pseudotest.py
+python scripts/mathprove_v8_pseudotest.py
 ```
 
-## 工作区与 run_dir
-- 运行产物默认写入 `../mathprove_workspace/`（相对 `skill/`），并自动创建 `run_YYYYMMDD_HHMMSS_xxx/` 子目录。
-- 可在 `skill/config.yaml` 中设置 `workspace_dir` 覆盖默认值。
-- 可通过 CLI 参数 `--workspace-dir` 或 `--run-dir` 指定工作区/运行目录。
-- `run_dir` 内含 `logs/`、`draft/`、`evidence/`、`audit/`、`magi/`、`sympy/`、`lean/`、`plan/` 等子目录。
+## 运行产物
 
-## 工作流状态机
-BOOTSTRAP → ROUTE_CHECK → MATH_MAGI_PLAN → STEP_EXECUTE → VERIFY → AUDIT → DRAFT_COMMIT → FINAL_RESPONSE
+运行产物默认写入 skill 包外部。典型结构如下：
 
-## `steps.json` 示例
-```json
-{
-  "problem": "证明并验证：对任意实数 x，有 (x+1)^2 = x^2 + 2x + 1",
-  "steps": [
-    {
-      "id": "S1",
-      "goal": "展开 (x + 1)^2",
-      "engine": "sympy",
-      "expected_evidence": "sympy output: simplify(...) == 0",
-      "checker": {
-        "type": "sympy",
-        "code": "import sympy as sp\nx = sp.Symbol('x')\nexpr = (x + 1)**2\nassert sp.expand(expr) == x**2 + 2*x + 1\nprint('ok')"
-      }
-    },
-    {
-      "id": "S2",
-      "goal": "形式化：Nat 加法右单位元",
-      "engine": "lean4",
-      "expected_evidence": "lean build success (no goals, no sorries)",
-      "checker": {
-        "type": "lean4",
-        "cmds": [
-          "import Mathlib",
-          "theorem S2 (n : Nat) : n + 0 = n := by simp"
-        ]
-      }
-    }
-  ]
-}
+```text
+mathprove_workspace/runs/<run_id>/
+├── problem.md
+├── problem_lock.md
+├── assumptions.md
+├── manifest.json
+├── status.json
+├── context_lake/
+├── knowledge/
+├── plan/
+├── candidates/
+├── magi/
+├── sympy/
+├── lean/
+├── memory/
+├── draft/
+├── audit/
+└── logs/
 ```
 
-## 配置与路由
+证明运行期间不应修改 skill 包本体。临时产物、日志、候选包和交接 capsule 应写入 workspace。
 
-### config.yaml / config.local.yaml
-- `skill/config.yaml`：默认配置。
-- `skill/config.local.yaml`：本地覆盖（gitignored），由 `bootstrap.py` 生成模板。
+## 验证纪律
 
-### 路径覆盖
-- SymPy 解释器：`final_audit.py --python` 或 `--sympy-python`
-- Lean4 客户端：`final_audit.py --lean-python`
-- Lean/Lake 可执行：`step.checker.lean_path` / `step.checker.lake_path`
+MathProve 将数学结论的支持强度分为四类：
 
-### Subagent 路由
-- `routes.subagent.auto_enable=true` 时可自动启用。
-- 生成任务包：`python scripts/subagent_tasks.py --steps steps.routed.json --out-dir ./tasks`
+1. Lean 或其他证明助手的 kernel-checked artifact；
+2. 带显式假设的可回放精确符号计算；
+3. 带记录范围的有界或穷举反例搜索；
+4. 与可审计工件绑定的人类可读证明步骤。
 
-## 联网启发示例
-记录联网启发结果到 `skill/references/refs.md`：
+只有这些层级可以支撑晋升结论。头脑风暴、多数投票、类比和隐藏推理只属于探索信号，不是证明证书。
+
+## 开发验证
+
+推荐检查：
+
 ```bash
-python skill/scripts/web_inspiration.py \
-  --query "mathlib lemma for ring simplification" \
-  --sources-json "[{\"title\":\"Mathlib simp lemma\",\"url\":\"https://example.com\",\"summary\":\"用于简化环上等式\"}]" \
-  --notes "用于确定可用引理"
+python -m py_compile skill/runtime/proof_factory_v8.py skill/runtime/context_lake_v8.py skill/runtime/moe_router_v8.py
+python skill/scripts/mathprove_v8_pseudotest.py
+python scripts/mathprove_v8_pseudotest.py
+python -m pytest -q
 ```
 
-## 目录结构
-- `skill/`：可安装的 Skill 根目录（推荐挂载）
-  - `SKILL.md`：Skill 入口与强制规则
-  - `assets/`：schema 与模板
-  - `references/`：外部来源记录
-  - `config.yaml` / `config.local.yaml`
-  - `runtime/`：运行时工具
-  - `scripts/`：标准脚本入口
-- `scripts/`：兼容入口（调用 `skill/scripts/`）
-- `tests/`：单元测试
+v8 合并后的最近一次本地验证：
+
+```text
+125 passed
+```
+
+## 文档
+
+- [English README](README.en.md)
+- [v8 deep optimization report](optimization/DEEP_OPTIMIZATION_REPORT_V8.md)
+- [v8 patch notes](optimization/PATCH_NOTES_V8.md)
+- [v8 pseudotest report](optimization/PSEUDOTEST_REPORT_V8.json)
 
 ## License
+
 MIT License
