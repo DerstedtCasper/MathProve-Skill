@@ -1,0 +1,41 @@
+{
+  "type": "object",
+  "required": [
+    "stage",
+    "branch_id",
+    "claim",
+    "tool_status",
+    "hard_vetoes",
+    "artifact_paths"
+  ],
+  "properties": {
+    "stage": {
+      "type": "string"
+    },
+    "branch_id": {
+      "type": "string"
+    },
+    "claim": {
+      "type": "string"
+    },
+    "tool_status": {
+      "enum": [
+        "pass",
+        "fail",
+        "unknown"
+      ]
+    },
+    "hard_vetoes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "artifact_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

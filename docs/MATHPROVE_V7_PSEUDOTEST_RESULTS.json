@@ -1,0 +1,40 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "name": "evidence_weighted_selection",
+      "status": "PASS",
+      "details": "{\"fluent_no_log\": 10, \"lean_cert\": 85}"
+    },
+    {
+      "name": "hard_veto_dominates",
+      "status": "PASS",
+      "details": "{\"has_sorry\": -10000, \"clean\": 75}"
+    },
+    {
+      "name": "final_rejects_forbidden_tokens",
+      "status": "PASS",
+      "details": "['forbidden_token:sorry']"
+    },
+    {
+      "name": "context_lake_index",
+      "status": "PASS",
+      "details": "entries=2"
+    },
+    {
+      "name": "moe_eight_experts",
+      "status": "PASS",
+      "details": "formalizer,lean_kernel,algebra_oracle,refuter,librarian,search,integrator,auditor"
+    },
+    {
+      "name": "notation_expert_selection",
+      "status": "PASS",
+      "details": "formalizer,lean_kernel,refuter"
+    },
+    {
+      "name": "zero_shot_policy_present",
+      "status": "PASS",
+      "details": "policy string found"
+    }
+  ]
+}

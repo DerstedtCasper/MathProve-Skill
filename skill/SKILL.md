@@ -1,130 +1,88 @@
 ---
 name: mathprove-skill
 description: |
-  面向复杂数学证明/推导/等价变形的"分步-工具验证-形式化门控"技能。
-  强制以步骤为单位：MAGI 共识 → SymPy 验证 → Lean4 形式化 → 证据包 → 审计。
-metadata:
-  version: 1.0.0
-  triggers: ["证明","形式化验证","Lean4","SymPy","推导","等价变形","prove","formalize"]
-  tags: [math, theorem-proving, sympy, lean4, verification, magi]
+  Research-grade automated formal proof workflow for complex mathematics, Lean4/SymPy verification, multi-agent proof search, proof engineering, theorem formalization, long-horizon proof campaigns, counterexample search, and evidence-gated final audits. Use when asked to prove, formalize, verify, audit, refactor, or explore mathematical statements, especially algebra, representation theory, quantum groups, braid/YBE topics, olympiad-style formal proofs, or large Lean projects.
 ---
 
-# MathProve Skill
+# MathProve Skill - Ultra v8
 
-本技能把证明当成可执行、可复核的软件流水线。每个结论必须绑定物理证据。
+MathProve treats proof as a restartable, auditable software pipeline. Every promoted mathematical conclusion must bind to durable evidence: Lean/SymPy logs, exact assumptions, candidate packs, proof-memory events, and final audit output.
 
----
+## 0. Non-negotiable rules
 
-## 0. 不可谈判硬规则（MUST）
+0.1 **Workspace boundary** — write temporary/run artifacts only under `WORKSPACE/`. Do not mutate the skill package during a run.
 
-0.1 **目录写入边界** — 只能在 `WORKSPACE/` 下读写产物。禁止在 skill 包内写入任何临时文件。
+0.2 **Evidence before conclusion** — never claim a theorem is proved until the final audit gate approves. Before that, use statuses such as scaffold complete, partially verified, blocked, or counterexample found.
 
-0.2 **禁止角色扮演** — 不得在主线程假装三人格。MAGI 必须通过 `scripts/magi_plan.py` 实现。
+0.3 **No untracked crowd simulation** — multi-agent work must be represented as task cards, candidate packs, logs, and evidence decisions. Do not merely role-play several agents inside prose.
 
-0.3 **门控写入** — 仅当 MAGI=APPROVED + SymPy 通过 + Lean4 通过 + 证据包齐全，才允许写入 draft 并标记 passed。
+0.4 **Gate promotion** — a candidate moves forward only after the current stage gate accepts it by evidence-weighted scoring and no hard veto fires.
 
-0.4 **终局约束** — `final_audit.py` 输出 APPROVED 之前，不得宣称"证明完成"。
+0.5 **Lean strictness** — `sorry` is allowed only in skeleton artifacts before lemma sprint. Non-skeleton proof files with `sorry`, `admit`, hidden axioms, or unsafe declarations fail closed.
 
-0.5 **可复核** — 每次工具调用的命令、输入、输出、退出码，必须落盘 workspace。
+0.6 **Large-budget mode** — when the user grants large or unlimited token/time budget, create a context lake and continue by externalizing state. Do not finish early merely because a short answer is easier.
 
----
+0.7 **Reproducibility** — record commands, inputs, outputs, exit codes, timestamps, imports, environment blockers, and proof dependencies.
 
-## 1. 工作区结构
+## 1. Workspace structure
 
-```
+```text
 WORKSPACE/runs/<run_id>/
-├── problem.md / assumptions.md / manifest.json / status.json
-├── plan/        steps.json + steps_readme.md
-├── magi/        step_XXX_vote.json
-├── sympy/       step_XXX_check.py + step_XXX_out.txt
-├── lean/        StepXXX.lean + step_XXX_lean.log
-├── draft/       step_XXX.md + proof_draft.md
-├── evidence/    step_XXX_evidence.json
-├── audit/       audit.json + Solution.md + FAILURE_REPORT.md
-└── logs/        init_check.log + tool_calls.log + errors.log
+├── problem.md / problem_lock.md / assumptions.md / manifest.json / status.json
+├── context_lake/      index.json + shards/*.md + handoff_capsules/*.md
+├── knowledge/         retrieved_lemmas.md + library_search.jsonl + citations.md
+├── plan/              theorem_variants.json + blueprint.md + lemma_dag.json
+├── candidates/        <stage>/<candidate_id>/candidate.json + artifacts + logs
+├── magi/              stage votes and vetoes
+├── sympy/             exact checks + logs
+├── lean/              Skeleton.lean + Integrated.lean + lemma files + logs
+├── memory/            events.jsonl + by_id/*.json
+├── draft/             line_map.json + proof_draft.md + Solution.md
+├── audit/             audit.json + FAILURE_REPORT.md
+└── logs/              init_check.log + tool_calls.log + errors.log
 ```
 
-run_id 格式：`YYYYMMDD_HHMMSS_<short_hash>`
+## 2. Ultra v8 workflow
 
----
+1. **Preflight**: check routes, lock the problem, record assumptions, choose route.
+2. **Budget contract**: if hard/frontier/research, enable `long_horizon=true`, `context_target_tokens>=1_000_000`, and stage-local branch queues.
+3. **Knowledge pack**: collect relevant definitions, Mathlib lemmas, user documents, prior memory, and citation notes.
+4. **Notation gate**: freeze variables, domains, namespaces, index conventions, coercions, and theorem signatures.
+5. **Skeleton gate**: create Lean declarations and lemma DAG. Use `sorry` only here.
+6. **Line-map gate**: convert informal proof lines into atomic formal obligations.
+7. **Lemma sprint**: run parallel candidate attempts; accept by evidence-weighted gate, not majority vote.
+8. **Refutation gate**: attack quantifiers, converse directions, boundary cases, hidden assumptions, and theorem drift.
+9. **Integration/refactor**: merge proof patches, minimize imports, remove skeleton placeholders, replay.
+10. **Final audit**: static scan + Lean replay + dependency/axiom profile + evidence coverage.
+11. **Proof memory update**: write successes, blockers, counterexamples, and reusable repairs to graph memory.
 
-## 2. 强制流程（4 阶段）
+## 3. Required references
 
-| 阶段 | 步骤 | 详细 SOP |
-|------|------|----------|
-| **A. 预检** | check_routes → 创建 run 目录 → 写 problem.md + assumptions.md | — |
-| **B. 规划** | magi_plan → steps.json → 结构校验 | — |
-| **C. 逐步循环** | 对每个 step: proposal → MAGI → SymPy → Lean4 → evidence → draft | `sop/magi.md` `sop/sympy.md` `sop/lean.md` `sop/evidence.md` |
-| **D. 审计** | final_audit → audit.json + Solution.md | `sop/audit.md` |
+Load these references when their gate is reached:
 
-失败时参考 `sop/error.md`。
+- `agent.md` — top-level operating charter.
+- `references/stage-gates-v8.md` — gate criteria, hard vetoes, rewind rules, and minimum work quotas.
+- `references/budget-and-context-lake-v8.md` — 1M+ context externalization and handoff discipline.
+- `references/moe-expert-router-v8.md` — expert activation, stage-local task cards, and escalation policy.
+- `references/formalization-scaffold-v8.md` — Tao-style skeleton → line map → lemma sprint workflow.
+- `references/proof-memory-graph-v8.md` — durable memory schema and relation labels.
+- `references/frontier-research-protocol-v8.md` — 24h+ proof-campaign protocol.
+- `references/research-basis-2026-v8.md` — research inspirations and implementation translation.
 
----
+## 4. Runtime helpers
 
-## 3. steps.json 最小 Schema
+Use these stdlib-only helpers when available:
 
-每个 step 必须原子化（一次只做一个可验证的最小推导单元），包含：
+- `runtime/proof_factory_v8.py` — stage specs, candidate scoring, hard vetoes, context lake, proof memory, budget contract, static Lean audit.
+- `runtime/context_lake_v8.py` — context-shard index utilities.
+- `runtime/moe_router_v8.py` — expert activation policy.
+- `scripts/proof_factory_v8.py` — CLI wrapper for demo decisions and static audits.
+- `scripts/mathprove_v8_pseudotest.py` — protocol regression tests.
 
-- `id`, `title`, `claim`（含 LaTeX）
-- `inputs`（前置 step id 列表）
-- `method`（sympy/lean/both）
-- `sympy`: { required, check_goal }
-- `lean`: { required, theorem_goal }
-- `evidence_required`, `risks`, `accept_criteria`
+## 5. Reporting standard
 
----
+Every progress report should include: `run_id`, current stage, accepted candidate or blocker, evidence paths, unresolved hazards, and next gate. Do not paste long logs; quote only the decisive lines and keep full logs in workspace.
 
-## 4. status.json 状态机
+## 6. Failure handling
 
-```
-phase: init → planning → step_loop → auditing → done | failed
-step.status: pending → magi_approved → sympy_passed → lean_passed → passed | failed
-```
-
-使用 `ProofSearchTree` 管理，非法转移抛 ValueError。详见 `sop/runtime.md`。
-
----
-
-## 5. 运行时模块（v1.0）
-
-| 模块 | 路径 | 职责 |
-|------|------|------|
-| ProofSearchTree | `runtime/proof_tree.py` | 状态机管理 |
-| ErrorClassifier | `runtime/error_classifier.py` | 三级错误分类 + RetryBudget |
-| ParallelRunner | `runtime/parallel_runner.py` | N 分支并行竞速 |
-| SafeVerify | `runtime/safe_verify.py` | Lean4 白盒审计 |
-| Orchestrator | `runtime/orchestrator.py` | 一键编排入口 |
-
-详细 API 参考 `sop/runtime.md`。
-
----
-
-## 6. SOP 按需加载索引
-
-| SOP 文件 | 加载时机 |
-|----------|----------|
-| `sop/magi.md` | 阶段 C — 每个 step 验证前 |
-| `sop/sympy.md` | 阶段 C — MAGI 通过后 SymPy 验证 |
-| `sop/lean.md` | 阶段 C — SymPy 通过后 Lean4 验证 |
-| `sop/evidence.md` | 阶段 C — 验证全部通过后写证据+草稿 |
-| `sop/audit.md` | 阶段 D — 终局审计 |
-| `sop/error.md` | 任何验证失败时 |
-| `sop/runtime.md` | 需要 Runtime API 参考时 |
-
----
-
-## 7. 汇报规范
-
-- 每次汇报含：run_id、当前 phase/step、通过/失败、证据路径
-- 不贴长日志全文（最多 5~20 行关键错误行）
-- 完整日志留在 workspace，指向文件路径
-
----
-
-## 8. 执行清单
-
-- [ ] check_routes 成功 + logs/init_check.log
-- [ ] run 目录 + problem.md + assumptions.md + status.json
-- [ ] steps.json 每步有 evidence_required + accept_criteria
-- [ ] 每步：MAGI vote → SymPy PASS → Lean4 PASS → evidence → draft
-- [ ] final_audit = APPROVED → 输出 Solution.md
+Fail closed when evidence is incomplete. On failure, write `FAILURE_REPORT.md` with stage, candidate ID, key error lines, log paths, retries used, suspected cause, and next repair actions. A precise failure certificate is a valid outcome; an unsupported proof claim is not.

@@ -1,0 +1,50 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "name": "evidence_weighted_selection",
+      "status": "PASS",
+      "detail": "{\"stage\": \"lemma_sprint\", \"selected_candidate_id\": \"compiled_patch\", \"accepted\": true, \"scores\": [{\"candidate_id\": \"pretty_but_unverified\", \"stage\": \"lemma_sprint\", \"total\": 0.0, \"components\": {\"tool_verification\": 0.0, \"dependency_closure\": 0.0, \"refutation_coverage\": 0.0, \"evidence_completeness\": 0.75, \"maintainability\": 0.9, \"restartability\": 0.6, \"novelty\": 0.8, \"cost_sanity\": 1.0}, \"veto_reasons\": [\"Lean verification is required at this stage\", \"missing tool log\"]}, {\"candidate_id\": \"compiled_patch\", \"stage\": \"lemma_sprint\", \"total\": 0.8102, \"components\": {\"tool_verification\": 0.8, \"dependency_closure\": 0.9, \"refutation_coverage\": 0.65, \"evidence_completeness\": 1.0, \"maintainability\": 0.78, \"restartability\": 0.85, \"novelty\": 0.25, \"cost_sanity\": 1.0}, \"veto_reasons\": []}, {\"candidate_id\": \"fast_sorry\", \"stage\": \"lemma_sprint\", \"total\": 0.0, \"components\": {\"tool_verification\": 0.8, \"dependency_closure\": 1.0, \"refutation_coverage\": 0.0, \"evidence_completeness\": 1.0, \"maintainability\": 0.0, \"restartability\": 0.0, \"novelty\": 0.0, \"cost_sanity\": 1.0}, \"veto_reasons\": [\"non-skeleton candidate is not marked no_sorry\"]}], \"reason\": \"accepted by evidence-weighted gate\", \"next_stage\": \"refutation\", \"created_at\": \"2026-04-26T09:14:31.247399+00:00\"}"
+    },
+    {
+      "name": "statement_drift_veto",
+      "status": "PASS",
+      "detail": "['theorem statement drift']"
+    },
+    {
+      "name": "skeleton_sorry_only",
+      "status": "PASS",
+      "detail": "skeleton=[], final=['sorry']"
+    },
+    {
+      "name": "line_map_guard",
+      "status": "PASS",
+      "detail": "['L1: missing obligation', 'L1: self dependency']"
+    },
+    {
+      "name": "budget_contract_frontier",
+      "status": "PASS",
+      "detail": "{\"mode\": \"frontier\", \"local_context_target_tokens\": 1000000, \"global_campaign_target_tokens\": 20000000, \"minimum_wall_clock_hours\": 24, \"default_parallel_branches\": 8, \"max_parallel_branches\": 64, \"require_context_lake\": true, \"require_refutation_gate\": true, \"anti_laziness_rule\": \"externalize-and-continue\", \"termination_allowed_only_if\": [\"final_audit_approved\", \"formal_counterexample_found\", \"theorem_statement_repaired_and_user_visible\", \"environment_blocker_with_replay_log\"]}"
+    },
+    {
+      "name": "no_premature_termination",
+      "status": "PASS",
+      "detail": "no valid termination condition; environment_blocker_with_replay_log"
+    },
+    {
+      "name": "moe_full_panel_escalation",
+      "status": "PASS",
+      "detail": "formalizer,skeletonist,line_mapper,tactic_sprinter,whole_proof_proposer,librarian,algebraic_verifier,refuter,repairer,integrator,auditor,domain_expert"
+    },
+    {
+      "name": "context_lake_and_memory_roundtrip",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "frontier_quota_veto",
+      "status": "PASS",
+      "detail": "['quota_not_met:candidate_packs:0<1']"
+    }
+  ]
+}

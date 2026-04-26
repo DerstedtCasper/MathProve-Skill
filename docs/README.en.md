@@ -1,4 +1,4 @@
-﻿# MathProve
+# MathProve
 
 Language / 语言: [English](README.en.md) | [中文](README.md)
 
@@ -25,7 +25,7 @@ Mount the `skill/` directory and keep the directory name consistent with `name: 
 ```powershell
 New-Item -ItemType Junction `
   -Path "$env:USERPROFILE\.codex\skills\mathprove" `
-  -Target "D:\AI bot\MathProve\skill"
+  -Target "D:\AI_studio\MathProve\skill"
 ```
 
 ## Quickstart

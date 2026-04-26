@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MathProve Candidate Evidence v8",
+  "type": "object",
+  "required": ["candidate_id", "stage", "role", "artifact_paths", "no_sorry"],
+  "properties": {
+    "candidate_id": {"type": "string"},
+    "stage": {"type": "string"},
+    "role": {"type": "string"},
+    "claim": {"type": "string"},
+    "artifact_paths": {"type": "array", "items": {"type": "string"}},
+    "tool_logs": {"type": "array", "items": {"type": "string"}},
+    "lean_passed": {"type": "boolean"},
+    "sympy_passed": {"type": "boolean"},
+    "no_sorry": {"type": "boolean"},
+    "dependency_closure": {"type": "number", "minimum": 0, "maximum": 1},
+    "refutation_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+    "evidence_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+    "maintainability": {"type": "number", "minimum": 0, "maximum": 1},
+    "restartability": {"type": "number", "minimum": 0, "maximum": 1},
+    "theorem_statement_hash": {"type": "string"},
+    "expected_statement_hash": {"type": "string"},
+    "quota_observations": {"type": "object"},
+    "veto_reasons": {"type": "array", "items": {"type": "string"}}
+  }
+}

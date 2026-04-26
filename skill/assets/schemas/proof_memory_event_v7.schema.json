@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MathProve v7 proof memory event",
+  "type": "object",
+  "required": [
+    "event_type",
+    "subject",
+    "relation",
+    "payload",
+    "stage",
+    "source"
+  ],
+  "properties": {
+    "event_type": {
+      "enum": [
+        "definition",
+        "lemma",
+        "proof_patch",
+        "counterexample",
+        "error",
+        "repair",
+        "decision",
+        "import",
+        "theorem"
+      ]
+    },
+    "subject": {
+      "type": "string"
+    },
+    "relation": {
+      "enum": [
+        "defines",
+        "derives",
+        "updates",
+        "replaces",
+        "contradicts",
+        "repairs",
+        "depends_on",
+        "blocks",
+        "supports"
+      ]
+    },
+    "payload": {
+      "type": "object"
+    },
+    "stage": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "replaces": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

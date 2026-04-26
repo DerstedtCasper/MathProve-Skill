@@ -1,0 +1,5 @@
+interface:
+  display_name: MathProve
+  short_description: High-rigor mathematical proof factory with Lean/SymPy evidence gates.
+  icon: calculator
+  brand_color: '#3657d8'

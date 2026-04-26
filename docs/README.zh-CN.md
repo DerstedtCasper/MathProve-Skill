@@ -1,4 +1,4 @@
-﻿# MathProve
+# MathProve
 
 语言 / Language: [中文](README.md) | [English](README.en.md)
 
@@ -25,7 +25,7 @@ cd MathProve
 ```powershell
 New-Item -ItemType Junction `
   -Path "$env:USERPROFILE\.codex\skills\mathprove" `
-  -Target "D:\AI bot\MathProve\skill"
+  -Target "D:\AI_studio\MathProve\skill"
 ```
 
 ## 快速开始

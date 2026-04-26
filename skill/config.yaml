@@ -1,6 +1,6 @@
 skill:
   name: mathprove
-  version: "1.0.0"
+  version: "8.0.0-ultra"
 
 workspace_dir: "../mathprove_workspace/"
 
@@ -13,13 +13,13 @@ routes:
   sympy:
     enabled: true
     python: python
-    timeout_seconds: 20
+    timeout_seconds: 60
   lean:
     enabled: true
     lean_cmd: lean
     lake_cmd: lake
-    timeout_seconds: 120
-    watchdog_no_output_seconds: 30
+    timeout_seconds: 900
+    watchdog_no_output_seconds: 120
     static_precheck: true
     require_mathlib: true
   web:
@@ -29,7 +29,27 @@ routes:
   subagent:
     enabled: false
     auto_enable: true
-    mode: none
+    mode: stage_parallel
     driver: ""
     endpoint: ""
-    note: ""
+    note: "Use external agent runners only when configured by the host environment."
+
+proof_factory:
+  version: 8
+  long_horizon_default: true
+  context_target_tokens: 1000000
+  global_campaign_target_tokens: 20000000
+  minimum_wall_clock_hours_for_frontier: 24
+  candidate_threshold: 0.72
+  default_parallel_branches: 8
+  max_parallel_branches_frontier: 64
+  require_context_lake: true
+  require_proof_memory: true
+  require_refutation_gate: true
+  allow_sorry_only_in_skeleton: true
+  anti_laziness_rule: "Do not terminate because a local context or single branch is exhausted. Externalize state and continue until a gate result, counterexample, or replayable blocker exists."
+
+moe:
+  activate_full_panel_for: [hard, frontier, research, high_uncertainty, repeated_failure]
+  default_roles: [formalizer, refuter, auditor]
+  full_panel: [formalizer, skeletonist, line_mapper, tactic_sprinter, whole_proof_proposer, librarian, algebraic_verifier, refuter, repairer, integrator, auditor, domain_expert]
