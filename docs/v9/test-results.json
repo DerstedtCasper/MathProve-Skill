@@ -1,0 +1,39 @@
+{
+  "version": "9.0.0-rc2",
+  "date_local": "2026-09-27",
+  "timezone": "Australia/Brisbane",
+  "environment": {
+    "python": "3.13.5",
+    "platform": "Linux",
+    "sqlite": "3.46.1",
+    "lean_available": false,
+    "lake_available": false,
+    "codex_available": false
+  },
+  "command": "python -m unittest discover -s tests_v9 -p 'test_*.py' -v",
+  "tests_run": 152,
+  "passed": 150,
+  "skipped": 2,
+  "failures": 0,
+  "errors": 0,
+  "skipped_cases": {
+    "test_live_lean_opt_in": "No Lean/lake; opt-in test not executed",
+    "test_native_windows_hook": "Linux environment; no native Windows test"
+  },
+  "source_checks": {
+    "exact_original_git_blobs_verified": 4,
+    "selected_original_v8_tests": 4,
+    "selected_patched_v8_tests": 4,
+    "comath_standalone_signature_cases": 13
+  },
+  "not_verified": [
+    "complete upstream repository test suites",
+    "complete CoMath build and private QA",
+    "live Codex lifecycle",
+    "live operator MCP daemon integration",
+    "real Lean proof replay",
+    "Windows execution",
+    "mathematical productivity benefit"
+  ],
+  "scope": "Local portable conformance and selected-source checks; no full upstream audit or real proof-kernel certification"
+}

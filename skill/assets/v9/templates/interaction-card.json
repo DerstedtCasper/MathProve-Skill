@@ -1,0 +1,22 @@
+{
+  "schema": "mathprove.human-ai-interaction-note.v9",
+  "run_id": "REPLACE",
+  "spec_hash": "REPLACE",
+  "human_contributions": {
+    "problem_selection": [],
+    "definitions_and_hints": [],
+    "proof_repairs": [],
+    "validation_performed": []
+  },
+  "agent_contributions": [],
+  "model_and_host_versions_if_reported": {},
+  "actual_parallelism_and_context_isolation": "not_recorded",
+  "tools_and_executed_commands": [],
+  "artifact_refs": [],
+  "statement_translation_review": "not_done",
+  "formal_verification": "not_done",
+  "novelty_review": "not_done",
+  "unresolved_obligations": [],
+  "publication_scope": "private draft",
+  "privacy": "Record task-level actions and results; no private chain-of-thought, credentials, or full transcript is required."
+}

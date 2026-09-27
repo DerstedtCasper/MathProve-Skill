@@ -1,0 +1,24 @@
+{
+  "samples_per_event": 5,
+  "python": "3.13.5",
+  "platform": "linux",
+  "measurements": {
+    "PreToolUse": {
+      "median_ms": 663.073,
+      "p95_ms": 741.298
+    },
+    "PostToolUse": {
+      "median_ms": 677.349,
+      "p95_ms": 703.003
+    },
+    "SessionStart": {
+      "median_ms": 680.874,
+      "p95_ms": 693.532
+    },
+    "Stop": {
+      "median_ms": 718.842,
+      "p95_ms": 785.951
+    }
+  },
+  "scope": "Local synthetic subprocess overhead. Not a comparison with Pi, CoMath, research outcomes, or model-token spending."
+}

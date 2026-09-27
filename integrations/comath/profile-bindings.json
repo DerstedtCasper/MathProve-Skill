@@ -1,0 +1,148 @@
+{
+  "schema": "mathprove.comath-profile-bindings.v1",
+  "profiles": [
+    {
+      "profile_id": "coordinator",
+      "role": "coordinator",
+      "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "source_path": "services/comathd/src/agents/agent-profiles.ts",
+      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "observed_legacy_specialist_tools": [
+        "campaign.next_actions",
+        "workstream.spawn"
+      ],
+      "runtime_allowlist": "must_be_supplied_by_service",
+      "proof_authority": "none",
+      "may_mutate_trusted_state": false,
+      "installed": false,
+      "live_integration_verified": false
+    },
+    {
+      "profile_id": "librarian",
+      "role": "librarian",
+      "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "source_path": "services/comathd/src/agents/agent-profiles.ts",
+      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "observed_legacy_specialist_tools": [
+        "literature.search",
+        "citation.condition_check"
+      ],
+      "runtime_allowlist": "must_be_supplied_by_service",
+      "proof_authority": "none",
+      "may_mutate_trusted_state": false,
+      "installed": false,
+      "live_integration_verified": false
+    },
+    {
+      "profile_id": "computation",
+      "role": "computation",
+      "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "source_path": "services/comathd/src/agents/agent-profiles.ts",
+      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "observed_legacy_specialist_tools": [
+        "runner.sympy_exact",
+        "runner.counterexample_search"
+      ],
+      "runtime_allowlist": "must_be_supplied_by_service",
+      "proof_authority": "none",
+      "may_mutate_trusted_state": false,
+      "installed": false,
+      "live_integration_verified": false
+    },
+    {
+      "profile_id": "proof-route",
+      "role": "proof_route",
+      "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "source_path": "services/comathd/src/agents/agent-profiles.ts",
+      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "observed_legacy_specialist_tools": [
+        "lean.skeleton.write",
+        "proof_memory.read"
+      ],
+      "runtime_allowlist": "must_be_supplied_by_service",
+      "proof_authority": "none",
+      "may_mutate_trusted_state": false,
+      "installed": false,
+      "live_integration_verified": false
+    },
+    {
+      "profile_id": "formalization",
+      "role": "formalization",
+      "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "source_path": "services/comathd/src/agents/agent-profiles.ts",
+      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "observed_legacy_specialist_tools": [
+        "lean.file.write.scoped",
+        "lean.check.scoped"
+      ],
+      "runtime_allowlist": "must_be_supplied_by_service",
+      "proof_authority": "none",
+      "may_mutate_trusted_state": false,
+      "installed": false,
+      "live_integration_verified": false
+    },
+    {
+      "profile_id": "reviewer",
+      "role": "reviewer",
+      "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "source_path": "services/comathd/src/agents/agent-profiles.ts",
+      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "observed_legacy_specialist_tools": [
+        "review.read_artifacts",
+        "review.write_audit"
+      ],
+      "runtime_allowlist": "must_be_supplied_by_service",
+      "proof_authority": "none",
+      "may_mutate_trusted_state": false,
+      "installed": false,
+      "live_integration_verified": false
+    },
+    {
+      "profile_id": "graph-builder",
+      "role": "graph_builder",
+      "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "source_path": "services/comathd/src/agents/agent-profiles.ts",
+      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "observed_legacy_specialist_tools": [
+        "graph_patch.propose"
+      ],
+      "runtime_allowlist": "must_be_supplied_by_service",
+      "proof_authority": "none",
+      "may_mutate_trusted_state": false,
+      "installed": false,
+      "live_integration_verified": false
+    },
+    {
+      "profile_id": "security-auditor",
+      "role": "security_auditor",
+      "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "source_path": "services/comathd/src/agents/agent-profiles.ts",
+      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "observed_legacy_specialist_tools": [
+        "security.scan_paths",
+        "security.review_logs"
+      ],
+      "runtime_allowlist": "must_be_supplied_by_service",
+      "proof_authority": "none",
+      "may_mutate_trusted_state": false,
+      "installed": false,
+      "live_integration_verified": false
+    },
+    {
+      "profile_id": "math-integrity-auditor",
+      "role": "math_integrity_auditor",
+      "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "source_path": "services/comathd/src/agents/agent-profiles.ts",
+      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "observed_legacy_specialist_tools": [
+        "math_integrity.check",
+        "lean.audit.read"
+      ],
+      "runtime_allowlist": "must_be_supplied_by_service",
+      "proof_authority": "none",
+      "may_mutate_trusted_state": false,
+      "installed": false,
+      "live_integration_verified": false
+    }
+  ]
+}

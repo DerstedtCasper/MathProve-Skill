@@ -1,194 +1,85 @@
-# MathProve-Skill
+# MathProve-Skill v9.0.0-rc2
 
-Language / 语言: **English** | [中文](docs/README.zh-CN.md)
+**非 Pi 环境的可恢复数学研究协议：共享工作区、任务依赖、证据门禁、Codex hooks 与角色模板。** Python 3.11+；便携控制器仅依赖标准库。它不自行调用模型、管理 API key 或认证数学新颖性。
 
-MathProve-Skill is a research-oriented proof engineering skill for long-horizon mathematical formalization. It combines Lean4, SymPy, staged agent orchestration, evidence-weighted candidate selection, and final audit gates to turn informal mathematical work into restartable, inspectable, and partially machine-checkable proof artifacts.
+本版本基于对固定源码版本的重点审阅：CoMath `e8e0182823b383cb228802c4d70f3309bf0a698c`；MathProve `e4aaf6abec8c05bc5186d635b06b56152442380b`。GitHub 插件读取成功，四个用于复现的原始文件已核对 Git blob SHA；**不是两个仓库的完整 clone，也不是整仓审计或完整上游回归**。本包是保留旧文件的增量覆盖包，没有修改远端。证据范围见 `docs/v9/SOURCE-COVERAGE.json`。
 
-The project is designed for research settings where correctness, replayability, and failure diagnosis matter more than producing fluent proof sketches. It treats proof construction as an auditable pipeline: statements are locked, assumptions are recorded, candidate branches are compared by evidence, and promoted results must survive explicit verification gates.
+## 选择一种运行方式
 
-## Research Scope
+| 方式 | 使用对象 | 状态与授权由谁维护 |
+|---|---|---|
+| Portable-local | 不用 Pi，也不部署 CoMath 服务 | 本包 SQLite/WAL、任务租约和本地审阅记录；合作式单用户协议 |
+| CoMath-backed | 不用 Pi，但愿意运行现有 `comathd` | **原 CoMath 服务**；Codex 通过仓库现有 operator MCP 操作，不另建影子数据库 |
 
-MathProve targets mathematical and mathematical-physics workflows such as:
+第二种方式更适合追求与 CoMath 同一运行标准，但本次只核对了接口与配置生成，没有完成真实 daemon/Codex 验收。两种模式不能把成功标签或人工审批互相转换。详见 `docs/v9/PARITY.md`。
 
-- formalizing theorem statements from research notes or manuscripts;
-- decomposing difficult arguments into theorem variants, lemma DAGs, skeletons, and line maps;
-- searching for algebraic, analytic, combinatorial, representation-theoretic, braid/YBE, or quantum-group proof routes;
-- running exact symbolic checks with explicit assumptions;
-- using Lean4/Mathlib evidence where available, and recording precise blockers where unavailable;
-- maintaining proof memory across long campaigns instead of relying on a single chat transcript.
+## RC2 相比 RC1 的实质更新
 
-MathProve does not treat natural-language plausibility as mathematical evidence. Agent votes, heuristic routes, and informal sketches can guide exploration, but they do not certify a theorem. Certification is reserved for kernel-checked artifacts, replayable symbolic computation, explicit counterexample search, or audited evidence packs.
+修复旧 `proof_factory_v8.py` 的混合阶段候选、重复 ID、非法阈值、非有限评分、依赖环/悬空依赖、字符串假值终止问题。这个旧模块仍是研究评分工具，**不因修补而变成证明验证器**；旧 context-lake 多写索引竞争未就地重构，新并发研究应使用 v9 或 CoMath。
 
-## Ultra v8 Overview
+CoMath 提示词不再把便携角色名称硬套进其注册表。新增九个与实际 profile ID 对应的补充模板，并标明 Pi 与 durable-worker 的不同接入点。新增 `comath_codex_config.py`：校验已审源码后生成现有 operator MCP 的 TOML，默认只开放读取工具，不读取密钥、不启动服务、不改全局信任。覆盖器新增上游文件指纹和相关 Git 未提交改动检查。
 
-The current v8 architecture upgrades the earlier MAGI + SymPy + Lean workflow into a long-horizon proof factory.
+Codex hooks 保留九类原生事件；只在本实现确实返回上下文的启动事件配置 `additionalContextLimit`。不在 hook 内编译、调用模型或自动安装依赖，也不因为问题未解决而无限阻止退出。**152 项测试：150 通过，2 跳过；真实 Lean 和原生 Windows 未运行。** 另有 4 项所选旧测试及 13 个 CoMath 独立签名解析回归；不等于完整上游回归。
 
-Core additions include:
+## 先在空目录演示便携模式
 
-- **Stage-gated proof factory**: problem lock, knowledge pack, notation gate, skeleton gate, line-map gate, lemma sprint, refutation, integration, final audit, and proof-memory update.
-- **Evidence-weighted promotion**: candidates are ranked by tool verification, dependency closure, refutation coverage, evidence completeness, maintainability, restartability, novelty, and cost sanity.
-- **Hard vetoes**: undefined symbols, unstated domains, theorem-statement drift, stale logs, missing evidence, non-skeleton `sorry`, Lean/SymPy failures, float-only exact proofs, and unaudited final claims fail closed.
-- **Context lake**: long proofs externalize state into indexed shards, handoff capsules, candidate packs, logs, and proof-memory events.
-- **MoE expert routing**: frontier/research/repeated-failure modes activate a fuller panel of formalizer, skeletonist, line mapper, librarian, tactic sprinter, algebraic verifier, refuter, repairer, integrator, auditor, and domain expert roles.
-- **No premature closure**: local context exhaustion is not a valid stopping condition. A campaign must end with a gate decision, counterexample, user-visible theorem repair, or replayable environment blocker.
-
-## Architecture
-
-```text
-MathProve-Skill/
-├── skill/
-│   ├── SKILL.md                  # Skill entrypoint and operational contract
-│   ├── agent.md                  # Proof-engineering constitution
-│   ├── config.yaml               # Default runtime and proof-factory configuration
-│   ├── runtime/
-│   │   ├── orchestrator.py        # High-level proof loop
-│   │   ├── proof_factory_v8.py    # Stage gates, scoring, vetoes, audit helpers
-│   │   ├── context_lake_v8.py     # Context shard and handoff utilities
-│   │   ├── moe_router_v8.py       # Stage/difficulty expert activation
-│   │   ├── safe_verify.py         # Lean-oriented safety checks
-│   │   ├── parallel_runner.py     # Parallel candidate execution
-│   │   └── magi/                  # Multi-role planning protocol
-│   ├── scripts/                   # Skill-local CLI entrypoints
-│   ├── references/                # Stage, routing, memory, and research protocols
-│   └── assets/                    # Schemas, templates, prompts, Lean assets
-├── scripts/                       # Compatibility wrappers
-├── tests/                         # Regression tests
-├── docs/
-│   ├── README.en.md
-│   ├── README.zh-CN.md
-│   └── optimization/              # v8 report, patch notes, pseudotest report
-└── runtime/                       # Compatibility runtime shims
+```sh
+python -m unittest discover -s tests_v9 -p 'test_*.py' -v
+mkdir demo-project
+python scripts/demo_v9.py --root demo-project
+python skill/scripts/mathprove.py --root demo-project status demo --human --check
 ```
 
-## Installation
+演示是非形式化流程测试，不是模型能力评测；不调用 Lean、不伪造独立审阅、不自动执行人工签核。默认 2 个并发租约、每任务 3 次尝试、每轮 32 次尝试，可显式调整；**这些不是 token 或费用上限**。六道累计门禁为 `spec → plan → candidate → refutation → verify → release`。
 
-### Standalone repository
+## 安装到 Codex 研究项目（Portable-local）
 
-```bash
-git clone https://github.com/DerstedtCasper/MathProve-Skill.git MathProve-Skill
-cd MathProve-Skill
-python -m pip install -r requirements-dev.txt
+```sh
+python scripts/install_v9.py --project /absolute/research/project --dry-run
+python scripts/install_v9.py --project /absolute/research/project
 ```
 
-### Codex/Agent skill mount
+安装至 `.agents/skills/mathprove-skill/`、`.codex/hooks.json`、`.codex/agents/mp_*.toml`。目标目录须存在。已有不同受管理内容时，先查看 dry-run，再使用 `--upgrade` 进行带备份更新。操作者仍需在宿主中审阅项目及 `/hooks` 的信任；更改 hooks 后重新审阅。移动目录或 Python 后重装。`--no-hooks` / `--no-agents` 是本次跳过，不是卸载旧配置。
 
-Mount the `skill/` directory as the skill root:
+便携角色是 coordinator、formalizer、strategist、librarian、prover、experimenter、refuter、integrator、auditor；九种职责并非同时启动九个模型。无真实子代理能力时必须记录为顺序检查。
 
-```powershell
-New-Item -ItemType Junction `
-  -Path "$env:USERPROFILE\.codex\skills\mathprove" `
-  -Target "D:\AI_studio\MathProve-Skill\skill"
+```sh
+python skill/scripts/mathprove.py --root /absolute/research/project init
+python skill/scripts/mathprove.py --root /absolute/research/project doctor
+python skill/scripts/mathprove.py --root /absolute/research/project start paper1 --spec spec.json
+python skill/scripts/mathprove.py --root /absolute/research/project status paper1 --human --check
 ```
 
-The skill metadata name is `mathprove-skill`; the mount directory may remain `mathprove` if that is the local convention used by the agent runtime.
+`spec.json` 在研究根目录内；示例见 `examples/v9/`。命令详见 `skill/references/v9/operations.md`。只有在操作者审查 Lake/依赖构建行为后，才显式执行 `verify paper1 --allow-build`。真实 Lean 验收尚未运行；新回放目录不是沙箱，也不保证全部传递依赖从源码重建。
 
-## Quickstart
+## 不用 Pi，但复用原 CoMath 服务（CoMath-backed）
 
-### 1. Check local routes
+在你已审阅并构建好的 CoMath 检出上生成配置：
 
-```bash
-python scripts/check_routes.py
+```sh
+python scripts/comath_codex_config.py --comath-root /absolute/path/to/comath-pi-lab
+# 需要明确授权的任务操作时，再选择 --access operator。
 ```
 
-This checks availability of configured symbolic, Lean, and optional orchestration routes.
+手工合并输出到研究项目的 `.codex/config.toml`，不要用 shell 重定向覆盖已有配置。通过环境提供 `COMATH_OPERATOR_BASE_URL` 和 `COMATH_OPERATOR_TOKEN`，不要把凭据提交到仓库。服务的 operator token 不得换成 host/worker 凭据。配置器检查源文件指纹及已构建入口存在，**不认证构建产物与源码一致性**；操作者需构建所审版本。
 
-### 2. Generate a MAGI plan
+本模式不执行本地 `init/start/review` 来镜像同一 campaign；不把 `mp_*` 的便携任务 JSON 当作 CoMath worker 协议。使用已有 `research_capabilities_get` 先发现实际能力。见 `skill/references/v9/comath-backed.md`。
 
-```bash
-python scripts/magi_plan.py \
-  --problem "Prove and verify: for every real x, (x+1)^2 = x^2 + 2*x + 1" \
-  --steps-out steps.json \
-  --draft draft.md
+## 合并到你的 MathProve-Skill 仓库
+
+在本地审阅分支中，用包内覆盖器预览和应用，而不是删除旧仓库：
+
+```sh
+python scripts/apply_v9_overlay.py --target /path/to/MathProve-Skill --dry-run
+python scripts/apply_v9_overlay.py --target /path/to/MathProve-Skill --apply
 ```
 
-### 3. Route and execute proof steps
+目标须包含已审的原 v8 核心文件，或本包相同修补版本。上游文件指纹不符、计划覆盖的 Git 路径有未提交改动时，脚本拒绝写入；没有 Git 时报告无法做 Git 状态检查。字节级检查也可能拒绝 CRLF 转换后的副本，此时人工合并 `review/patches/mathprove-v8-validation.patch`，不要绕过检查覆盖自己的改动。覆盖不是三方合并，旧数据库不迁移，旧启动器不自动切换。
 
-```bash
-python scripts/step_router.py \
-  --input steps.json \
-  --output steps.routed.json \
-  --explain
-```
+`review/patches/comath-statement-signature.patch` 是单独供 CoMath 审阅的候选补丁，**不由本安装器应用**。合并及回退见 `docs/v9/MIGRATION.zh-CN.md`。
 
-### 4. Run final audit
+## 审阅与交接
 
-```bash
-python scripts/final_audit.py \
-  --steps steps.routed.json \
-  --solution Solution.md \
-  --lean-cwd "<path-to-lean-project>" \
-  --lean-gate
-```
+`docs/v9/AUDIT.zh-CN.md` 给出源码发现及优先级；`TEST-REPORT.md` 给出实测与未覆盖项；`COMATH-PROMPTS.md` 说明角色真实接入路径；`HANDOFF.md` 记录后续验收。旧 RC1 报告仅作为历史记录保存在 `docs/v9/archive/rc1/`。
 
-### 5. Exercise the v8 proof factory protocol
-
-```bash
-python skill/scripts/mathprove_v8_pseudotest.py
-python scripts/mathprove_v8_pseudotest.py
-```
-
-## Run Artifacts
-
-Runtime artifacts are written outside the skill package by default. A typical run contains:
-
-```text
-mathprove_workspace/runs/<run_id>/
-├── problem.md
-├── problem_lock.md
-├── assumptions.md
-├── manifest.json
-├── status.json
-├── context_lake/
-├── knowledge/
-├── plan/
-├── candidates/
-├── magi/
-├── sympy/
-├── lean/
-├── memory/
-├── draft/
-├── audit/
-└── logs/
-```
-
-The package itself should remain immutable during a proof run. Temporary artifacts, logs, candidate packs, and handoff capsules belong in the workspace.
-
-## Verification Discipline
-
-MathProve distinguishes four levels of support:
-
-1. kernel-checked Lean or another accepted proof-assistant artifact;
-2. replayed exact symbolic computation with explicit assumptions;
-3. bounded or exhaustive counterexample search with recorded scope;
-4. human-readable derivation linked to auditable artifacts.
-
-Only these levels may support promoted mathematical claims. Brainstorming, majority votes, analogies, and hidden reasoning are exploratory signals, not proof certificates.
-
-## Development Checks
-
-The repository currently verifies with:
-
-```bash
-python -m py_compile skill/runtime/proof_factory_v8.py skill/runtime/context_lake_v8.py skill/runtime/moe_router_v8.py
-python skill/scripts/mathprove_v8_pseudotest.py
-python scripts/mathprove_v8_pseudotest.py
-python -m pytest -q
-```
-
-Latest local validation after the v8 merge:
-
-```text
-125 passed
-```
-
-## Documentation
-
-- [English README](docs/README.en.md)
-- [中文 README](docs/README.zh-CN.md)
-- [v8 deep optimization report](docs/optimization/DEEP_OPTIMIZATION_REPORT_V8.md)
-- [v8 patch notes](docs/optimization/PATCH_NOTES_V8.md)
-- [v8 pseudotest report](docs/optimization/PSEUDOTEST_REPORT_V8.json)
-
-## License
-
-MIT License
+不要提交 `.mathprove/`、私有租约文件、研究工作区或备份。先把 `gitignore.v9.snippet` 合并进现有规则，再按路径选择提交，避免 `git add .`。保留原许可证；独立新增内容见 `LICENSE.v9`，修改的旧模块和 CoMath 补丁来源见 `review/UPSTREAM-NOTICES.md`。

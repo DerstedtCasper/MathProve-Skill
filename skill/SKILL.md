@@ -1,88 +1,45 @@
 ---
 name: mathprove-skill
-description: |
-  Research-grade automated formal proof workflow for complex mathematics, Lean4/SymPy verification, multi-agent proof search, proof engineering, theorem formalization, long-horizon proof campaigns, counterexample search, and evidence-gated final audits. Use when asked to prove, formalize, verify, audit, refactor, or explore mathematical statements, especially algebra, representation theory, quantum groups, braid/YBE topics, olympiad-style formal proofs, or large Lean projects.
+description: Evidence-bound mathematical research with persistent workspaces, lemma tasks, bounded multi-agent collaboration, adversarial review and optional Lean 4 verification. Use for sustained research or proof projects; not for routine one-off arithmetic. Requires explicit operator approval for builds, tool installation and human review.
 ---
 
-# MathProve Skill - Ultra v8
+# MathProve v9 — portable research protocol
 
-MathProve treats proof as a restartable, auditable software pipeline. Every promoted mathematical conclusion must bind to durable evidence: Lean/SymPy logs, exact assumptions, candidate packs, proof-memory events, and final audit output.
+Select the backend before beginning. For an existing CoMath deployment, read `references/v9/comath-backed.md` and use only its actual operator tools; do not initialize a local shadow database or adopt the portable task JSON. Do not silently change backends on a missing tool.
 
-## 0. Non-negotiable rules
+The remaining sections describe **Portable-local** mode. Read `agent.md` for that mode. This is the v9 release-candidate entrypoint, independent of retained legacy state. Use only `scripts/mathprove.py` for v9 state. A selected v8 scoring/graph helper has a compatibility patch, but legacy database migration and full legacy regression are not provided.
 
-0.1 **Workspace boundary** — write temporary/run artifacts only under `WORKSPACE/`. Do not mutate the skill package during a run.
+## Start and resume
 
-0.2 **Evidence before conclusion** — never claim a theorem is proved until the final audit gate approves. Before that, use statuses such as scaffold complete, partially verified, blocked, or counterexample found.
+1. Establish the research root and goal from the current user request. Run `python <skill-root>/scripts/mathprove.py --root <research-root> doctor`. Do not install missing tools automatically.
+2. Initialize once with `init`, then `list`/`status <run> --check`. If multiple runs exist, explicitly select and `bind <run> --session <session-id>`; do not guess. Restore a bounded checkpoint and relevant artifacts, not the full conversation.
+3. For a new run, create a spec JSON **inside the research root** with mode, statement, assumptions, symbols. Formal mode also needs `lean.project`, `lean.module`, `lean.declaration`, and the exact reviewed `lean.expected_type`. Use `start <run> --spec <file>`; it defaults to two parallel leases, three attempts per task and 32 attempts total.
+4. Read `references/v9/operations.md` for exact commands and `references/v9/protocol.md` for evidence requirements. Use `--help` rather than guessing flags. Keep the root before the subcommand.
 
-0.3 **No untracked crowd simulation** — multi-agent work must be represented as task cards, candidate packs, logs, and evidence decisions. Do not merely role-play several agents inside prose.
+## Research cycle
 
-0.4 **Gate promotion** — a candidate moves forward only after the current stage gate accepts it by evidence-weighted scoring and no hard veto fires.
+Follow `spec → plan → candidate → refutation → verify → release`. A gate is a structural/evidence check, not an LLM verdict. Later gates recheck earlier requirements and current evidence hashes. Statement changes go through `revise`; never edit a lock, database, receipt or old artifact in place.
 
-0.5 **Lean strictness** — `sorry` is allowed only in skeleton artifacts before lemma sprint. Non-skeleton proof files with `sorry`, `admit`, hidden axioms, or unsafe declarations fail closed.
+Create a small lemma DAG. Reuse known results only with checked hypotheses and exact source references. Record missing source coverage rather than claim novelty from absent search results. Compare a proof route with a genuinely different route or adverse-evidence probe before expensive parallel work.
 
-0.6 **Large-budget mode** — when the user grants large or unlimited token/time budget, create a context lake and continue by externalizing state. Do not finish early merely because a short answer is easier.
+Use `task-add`, `claim`, `packet`, `heartbeat`, `finish` for bounded tasks. The coordinator owns lease tokens and shared state. Writable workers stay in their attempt directories; read-only workers return inline drafts. Register artifacts with `evidence-add` separately; a completed task is not proof. Counterexample leads become unresolved issues, not silently dropped objections. Preserve failed approaches with assumptions and reproduction details.
 
-0.7 **Reproducibility** — record commands, inputs, outputs, exit codes, timestamps, imports, environment blockers, and proof dependencies.
+Default to one coordinator and only the specialist roles needed for the current bottleneck. Native Codex presets are `mp_formalizer`, `mp_strategist`, `mp_librarian`, `mp_prover`, `mp_experimenter`, `mp_refuter`, `mp_integrator`, `mp_auditor`. The parent may adopt `mp_coordinator` instructions; do not spawn a second coordinator. Shared role sources are in `assets/v9/roles/`. No subagent tool means explicitly sequential role passes, not fictional independent agents.
 
-## 1. Workspace structure
+Use minimal context packets. `packet --blind-statement` with a formalizer/auditor task withholds the informal target and previous opinions for a separate back-translation pass. It is context filtering, not access-control isolation. The host must create a truly separate context for independent review.
 
-```text
-WORKSPACE/runs/<run_id>/
-├── problem.md / problem_lock.md / assumptions.md / manifest.json / status.json
-├── context_lake/      index.json + shards/*.md + handoff_capsules/*.md
-├── knowledge/         retrieved_lemmas.md + library_search.jsonl + citations.md
-├── plan/              theorem_variants.json + blueprint.md + lemma_dag.json
-├── candidates/        <stage>/<candidate_id>/candidate.json + artifacts + logs
-├── magi/              stage votes and vetoes
-├── sympy/             exact checks + logs
-├── lean/              Skeleton.lean + Integrated.lean + lemma files + logs
-├── memory/            events.jsonl + by_id/*.json
-├── draft/             line_map.json + proof_draft.md + Solution.md
-├── audit/             audit.json + FAILURE_REPORT.md
-└── logs/              init_check.log + tool_calls.log + errors.log
-```
+## Verification and stop conditions
 
-## 2. Ultra v8 workflow
+Research mode can produce a `reviewed_research` packet after integration and human review. This is **not a formal proof certificate**. CAS calculations, finite search, empirical tests and reviewed informal proofs remain labeled by their evidence type.
 
-1. **Preflight**: check routes, lock the problem, record assumptions, choose route.
-2. **Budget contract**: if hard/frontier/research, enable `long_horizon=true`, `context_target_tokens>=1_000_000`, and stage-local branch queues.
-3. **Knowledge pack**: collect relevant definitions, Mathlib lemmas, user documents, prior memory, and citation notes.
-4. **Notation gate**: freeze variables, domains, namespaces, index conventions, coercions, and theorem signatures.
-5. **Skeleton gate**: create Lean declarations and lemma DAG. Use `sorry` only here.
-6. **Line-map gate**: convert informal proof lines into atomic formal obligations.
-7. **Lemma sprint**: run parallel candidate attempts; accept by evidence-weighted gate, not majority vote.
-8. **Refutation gate**: attack quantifiers, converse directions, boundary cases, hidden assumptions, and theorem drift.
-9. **Integration/refactor**: merge proof patches, minimize imports, remove skeleton placeholders, replay.
-10. **Final audit**: static scan + Lean replay + dependency/axiom profile + evidence coverage.
-11. **Proof memory update**: write successes, blockers, counterexamples, and reusable repairs to graph memory.
+Formal mode uses explicit `verify <run> --allow-build` only after the human has approved the build code and environment. The runner uses a fresh workspace, a pinned Lean toolchain and dependency manifest, a wrapper checking the exact expected type, and an axiom allowlist. No hook may compile, install dependencies, call an LLM, or promote tool success to proof. Read the runner limitations in `references/v9/protocol.md` before claiming what was checked.
 
-## 3. Required references
+A failed, missing or stale verification blocks formal release. Human review must bind the current snapshot and be invoked by the operator outside agent execution. Do not invoke `review --human-ack` on the user's behalf. Even the final `reviewed_formal_local` label is a cooperative local record, not authenticated independent certification or a novelty judgment.
 
-Load these references when their gate is reached:
+On budget exhaustion, interruption, a blocked dependency, or a request to stop: checkpoint, report the precise unresolved obligation, and pause. Do not force an endless Stop-hook loop, demand a million-token budget, or infer impossibility from an unsuccessful attempt. A continuation must state what new evidence, tool, approach or budget justifies it.
 
-- `agent.md` — top-level operating charter.
-- `references/stage-gates-v8.md` — gate criteria, hard vetoes, rewind rules, and minimum work quotas.
-- `references/budget-and-context-lake-v8.md` — 1M+ context externalization and handoff discipline.
-- `references/moe-expert-router-v8.md` — expert activation, stage-local task cards, and escalation policy.
-- `references/formalization-scaffold-v8.md` — Tao-style skeleton → line map → lemma sprint workflow.
-- `references/proof-memory-graph-v8.md` — durable memory schema and relation labels.
-- `references/frontier-research-protocol-v8.md` — 24h+ proof-campaign protocol.
-- `references/research-basis-2026-v8.md` — research inspirations and implementation translation.
+## Host integration
 
-## 4. Runtime helpers
+The native installer merges project-local Codex command hooks and standalone agent TOML presets; the human must review/trust the project and hooks through the host. Changes require re-review. Hooks are convenience guardrails, not comprehensive security. Other hosts can call the same CLI and use the shared prompts manually; their hook schemas are not assumed identical to Codex.
 
-Use these stdlib-only helpers when available:
-
-- `runtime/proof_factory_v8.py` — stage specs, candidate scoring, hard vetoes, context lake, proof memory, budget contract, static Lean audit.
-- `runtime/context_lake_v8.py` — context-shard index utilities.
-- `runtime/moe_router_v8.py` — expert activation policy.
-- `scripts/proof_factory_v8.py` — CLI wrapper for demo decisions and static audits.
-- `scripts/mathprove_v8_pseudotest.py` — protocol regression tests.
-
-## 5. Reporting standard
-
-Every progress report should include: `run_id`, current stage, accepted candidate or blocker, evidence paths, unresolved hazards, and next gate. Do not paste long logs; quote only the decisive lines and keep full logs in workspace.
-
-## 6. Failure handling
-
-Fail closed when evidence is incomplete. On failure, write `FAILURE_REPORT.md` with stage, candidate ID, key error lines, log paths, retries used, suspected cause, and next repair actions. A precise failure certificate is a valid outcome; an unsupported proof claim is not.
+No external service, plugin, model provider or API key is required by this controller. It does not itself launch LLMs or pay for inference. Actual agent tools, model choice, sandbox permissions and billing caps remain host/operator responsibilities.

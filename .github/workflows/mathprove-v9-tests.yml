@@ -1,0 +1,29 @@
+name: MathProve v9 portable conformance
+on:
+  push:
+    paths: ['skill/**', 'scripts/**', 'tests_v9/**', 'integrations/**', 'examples/v9/**', '.github/workflows/mathprove-v9-tests.yml']
+  pull_request:
+    paths: ['skill/**', 'scripts/**', 'tests_v9/**', 'integrations/**', 'examples/v9/**', '.github/workflows/mathprove-v9-tests.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  portable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12', '3.13']
+    steps:
+      # Major tags checked against official repository docs on 2026-09-27.
+      # Maintainers may pin reviewed full action SHAs under their own policy.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Portable controller and hook fixtures
+        run: python -m unittest discover -s tests_v9 -p 'test_*.py' -v
+      # No secrets, no pull_request_target, no model calls, no unreviewed Lean build.

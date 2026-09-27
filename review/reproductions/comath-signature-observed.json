@@ -1,0 +1,93 @@
+[
+  {
+    "case_name": "plain",
+    "theorem_name": "t",
+    "lean_check_output": "t : True",
+    "observed": {
+      "result": "ok",
+      "signature": {
+        "theorem_name": "t",
+        "normalized_signature": "t : True",
+        "normalized_type": ": True"
+      },
+      "matches": [
+        "t : True"
+      ]
+    }
+  },
+  {
+    "case_name": "apostrophe",
+    "theorem_name": "t'",
+    "lean_check_output": "t' : True",
+    "observed": {
+      "result": "missing",
+      "matches": []
+    }
+  },
+  {
+    "case_name": "Greek",
+    "theorem_name": "α",
+    "lean_check_output": "α : True",
+    "observed": {
+      "result": "missing",
+      "matches": []
+    }
+  },
+  {
+    "case_name": "subscript",
+    "theorem_name": "t₀",
+    "lean_check_output": "t₀ : True",
+    "observed": {
+      "result": "missing",
+      "matches": []
+    }
+  },
+  {
+    "case_name": "name collision",
+    "theorem_name": "t",
+    "lean_check_output": "t' : True",
+    "observed": {
+      "result": "ok",
+      "signature": {
+        "theorem_name": "t",
+        "normalized_signature": "t' : True",
+        "normalized_type": "' : True"
+      },
+      "matches": [
+        "t' : True"
+      ]
+    }
+  },
+  {
+    "case_name": "namespace collision",
+    "theorem_name": "t",
+    "lean_check_output": "t.other : True",
+    "observed": {
+      "result": "ok",
+      "signature": {
+        "theorem_name": "t",
+        "normalized_signature": "t.other : True",
+        "normalized_type": ".other : True"
+      },
+      "matches": [
+        "t.other : True"
+      ]
+    }
+  },
+  {
+    "case_name": "universe",
+    "theorem_name": "id",
+    "lean_check_output": "id.{u} {α : Sort u} (a : α) : α",
+    "observed": {
+      "result": "ok",
+      "signature": {
+        "theorem_name": "id",
+        "normalized_signature": "id.{u} {α : Sort u} (a : α) : α",
+        "normalized_type": ".{u} {α : Sort u} (a : α) : α"
+      },
+      "matches": [
+        "id.{u} {α : Sort u} (a : α) : α"
+      ]
+    }
+  }
+]

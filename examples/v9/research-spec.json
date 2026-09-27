@@ -1,0 +1,8 @@
+{
+  "mode": "research",
+  "statement": "For every natural number n, n equals itself. This is an elementary workflow demonstration, not novel research.",
+  "assumptions": [],
+  "symbols": {
+    "n": "natural number"
+  }
+}

@@ -11,6 +11,14 @@ skill/subagent_tasks/
 # Workspace runtime output (never commit)
 mathprove_workspace/
 
+# MathProve v9 controller state and recoverable upgrade backups
+.mathprove/
+.mathprove-install-backups/
+.mathprove-v9-overlay-backups/
+WORKSPACE/
+*.private.json
+# Review project-local .codex/hooks.json before committing; never commit credentials.
+
 # Lean / Lake
 .lake/
 lake-packages/
@@ -19,4 +27,3 @@ lake-packages/
 # Local config overrides
 config.local.yaml
 skill/config.local.yaml
-
