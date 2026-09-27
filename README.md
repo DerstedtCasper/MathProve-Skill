@@ -34,6 +34,8 @@ python skill/scripts/mathprove.py --root demo-project status demo --human --chec
 
 ## 安装到 Codex 研究项目（Portable-local）
 
+Snow CLI 与 Snow App 的 Hook 格式不同；Snow 部署与验收见 `docs/v9/SNOW-HOOKS.md`。
+
 ```sh
 python scripts/install_v9.py --project /absolute/research/project --dry-run
 python scripts/install_v9.py --project /absolute/research/project

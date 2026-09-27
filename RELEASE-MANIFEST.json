@@ -10,6 +10,7 @@
   "legacy_migration": false,
   "notice": "Source-informed additive overlay with one pinned legacy-module patch. Not a full upstream checkout or three-way merge. Preserve original licenses and review local changes.",
   "repository_validation_patch": "Windows test-harness portability and LF checkout stability; v9 runtime protocol and source-backed overlay scope are unchanged.",
+  "snow_host_integration_patch": "Snow CLI/App lifecycle adapter and backed-up global hook installation; no change to formal proof authority.",
   "upstream_file_preconditions": {
     "skill/runtime/proof_factory_v8.py": [
       "6f362d40efd0cd2a183f2ceb70889b84d46f7f97"
@@ -18,9 +19,9 @@
   "files": {
     ".gitattributes": "d756555824ab3d9210a163d3506e5293fb21bf51b2185fc5673db2a9ac88c43b",
     ".github/workflows/mathprove-v9-tests.yml": "a9b30cf07562fc6fe76cd4a04e92dc16460a85d2dd31a4ed96e0beea052deab6",
-    "CHANGELOG.v9.md": "02b37d8a733bdc46cdd2248ee131c6cc7b1f165d9920ffb89fda028b3937db52",
+    "CHANGELOG.v9.md": "a00b4f2df6d9fe5c95657625c8d064bbf4cb9b8e6d264ac2b876d239b0c1b234",
     "LICENSE.v9": "2235600d5a7347a8aa5fd6c322c1c62d6959865b1fb4d6acf0d5af1c46510e4f",
-    "README.md": "effb171af46c857402d009c490d17f7cbe304fe1f683c572e07304ad14d8353a",
+    "README.md": "4d9e6bf9afaf1df00a5a439480e30d105f31ae24c9cc2649930c9de34fb470ac",
     "docs/v9/AUDIT.zh-CN.md": "068d2a3af1d2e2a9e7dbc37562a2831a697035cf76f8e1907d439c15ccad4eb9",
     "docs/v9/COMATH-PROMPTS.md": "d6daf3d08a8948990d4593910e893c114a2166523fbef3919bb29e84feff8cd7",
     "docs/v9/HANDOFF.md": "60c017b20301cf87bcfd114663e123b0c694b7ef0a5c590ba7af31f3931ae3bb",
@@ -28,6 +29,7 @@
     "docs/v9/PARITY.md": "ff690ba5db537bf7f3cb7b877c9c6506fe7bdc8fa2e412efdcd17de47b968e87",
     "docs/v9/SOURCE-COVERAGE.json": "9dd26ca3af8b9b13fb99d5e2b3d2134486e1bf0caab1a84cc1cced9aadb9a060",
     "docs/v9/SOURCES.md": "61fe362dd1282519fcf145a0409f9172dc113336168a37b555bb5731d8c87771",
+    "docs/v9/SNOW-HOOKS.md": "e9c7c1f678736de1ce7374b492802edbfdb7746bf585f2573074abeec490a870",
     "docs/v9/TEST-REPORT.md": "6cecb398f90b1a1a7e4727d2b5b65cf96ccd6c215fdeba33b7e54d7d5b141e34",
     "docs/v9/archive/README.md": "52a660146aad6449e7cb6ec066da19e53c5fb7167b5a591ec744ab5c71472267",
     "docs/v9/archive/rc1/AUDIT.zh-CN.md": "f3cef169a7a42a789dd4e12bcb50eaaec19a7f1392daa266998bbf32b80cd1f8",
@@ -97,6 +99,7 @@
     "scripts/demo_v9.py": "c95af0236535f2e355831d143473ec8d7e8a4ea1c70f8f0532899f663eed646a",
     "scripts/generate_agents_v9.py": "f38c35cfd66583218c3800ef720e9a0f8e474092d9662a711435d96fefbcecd6",
     "scripts/install_v9.py": "0d8909697babae5bd074d9eb62cccce956fd2df03b747c0e52bbbf6256f4a2d9",
+    "scripts/install_snow_hooks.py": "58a0d6688334dd19a3b2ed345eacb3dc56ba41b2bd3784d22243e4b06746dcdc",
     "skill/SKILL.md": "3acf71eb8002cc7bf88507db1e9f96e72a210d38a5bbfef22942e0178a07aa72",
     "skill/agent.md": "014d1a4759a3fb20e0c35cda262c9823112db428b1eb6c997f1f8d75e6420592",
     "skill/agents/openai.yaml": "5c6e70c4e53f0d0917cf5dae9f382865131346560e8a9790b7d1cf92273b47a3",
@@ -132,14 +135,17 @@
     "skill/runtime_v9/hooks.py": "c41ae4dbf6ad2409386eb3aedd3a48a30f09cdc3f9b2eb2e2edba6ecd1f527a5",
     "skill/runtime_v9/install.py": "5827c7e0f31b8ac6563afa328f58bcc2babc1dfb852e33b328d088174b3ad149",
     "skill/runtime_v9/runner.py": "2d7ca3fb20a4528018f6ac777badf483be01f4b2891c938f03d5e978c44e9237",
+    "skill/runtime_v9/snow_hooks.py": "271e7b3ef4f4ca22db6ea98d943e129787cd9e719dfb35bc167442964bf68785",
     "skill/scripts/mathprove.py": "365146c4c59b32ecd887cfd04ce414f925fb9356a6a066536b88a8d693bbb972",
     "skill/scripts/mathprove_hook.py": "2e01bf527164e568bc6d96acb033868dc6a5131ef18296253c743b81d13b9206",
+    "skill/scripts/mathprove_snow_hook.py": "3b0c61414bafd4b015cc2607de3ebbd61e2144f6543eb28613490f6ca5616254",
     "tests_v9/helpers.py": "06a84aec5465dbc8d50ea1572642d93aa09f460b7e434e1d1b3eaa05cc33b841",
     "tests_v9/test_core.py": "cff882e439a512205077f11048e14ac35b30b024d3e1ce4efdb757c8ee07d04e",
     "tests_v9/test_hooks.py": "aa8d7e207bab6c8c5aa2ccad5225b9151d946f45b1cb3956c1bff60f3b4e16d4",
     "tests_v9/test_install_cli.py": "651ab9de02d0323826b659434fea4680b0dea5084d1b24d5417d5b9953d55083",
     "tests_v9/test_overlay.py": "5b8177114b326130c8d583a8074a800fedaef3a1d1f2327408f8694a08e22799",
     "tests_v9/test_runner.py": "5caf9b2eb6cfaac3699e88e62b218f82119216f1cd1cd37aa3cd3a41c8a00e67",
-    "tests_v9/test_source_review.py": "baa8c54a07d18ba85c3b3c2f8519e09763de8e174c8375770a581b1122f65e79"
+    "tests_v9/test_source_review.py": "baa8c54a07d18ba85c3b3c2f8519e09763de8e174c8375770a581b1122f65e79",
+    "tests_v9/test_snow_hooks.py": "7d569a15b534ab7b490e7571a4234a72b5abd893007d99362402988d51c0caab"
   }
 }
