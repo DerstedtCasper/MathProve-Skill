@@ -1,5 +1,11 @@
 # 9.0.0-rc2 — 2026-09-27
 
+## Snow host integration — 2026-09-28
+
+- Added a Snow CLI/App hook adapter for the seven v9 lifecycle events Snow exposes. It translates Snow tool/session fields and host-specific exit codes while reusing the v9 controller.
+- Added an installer that merges global Snow CLI hook files and Snow App hook settings, retains unrelated rules, backs up the App database, and supports dry-run/idempotent reapplication.
+- Snow hooks activate controller behavior only in an initialized `.mathprove` research workspace. Actual Snow UI/model sessions and Lean verification remain separate acceptance checks.
+
 Source-informed follow-up to the independent RC1 overlay. CoMath is pinned to e8e0182823b383cb228802c4d70f3309bf0a698c; MathProve to e4aaf6abec8c05bc5186d635b06b56152442380b. GitHub source reads succeeded; no full clones, full upstream builds or remote changes.
 
 ## Fixed
