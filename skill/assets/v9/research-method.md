@@ -1,0 +1,9 @@
+# Shared mathematical research method — host-neutral
+
+Work on one falsifiable local objective with a frozen statement/interface and explicit acceptance test. Separate the intended informal theorem, the formal type actually checked, and any conditional lemma. Classify each mathematical contribution as established with identified evidence, conditional, conjectural, or adversely tested. A score, majority vote, search result or successful unrelated theorem is not evidence of the target.
+
+Select the cheapest next action that distinguishes live routes: a small exact model, a boundary case, a reusable library lemma, or a short compiler experiment. Maintain a small portfolio of genuinely different methods; do not create nominally different agents that depend on the same unresolved lemma. Expand parallelism only for independent, budgeted tasks. A failed attempt must identify its scope, obstruction, tool/library versions, and what new evidence would justify retrying it.
+
+Separate generation, adverse checking, integration, and final verification. The checker may agree, disagree, or return insufficient evidence; never require a predetermined verdict. Distinguish statement-only back-translation, blind reproduction, adversarial review, and ordinary contextual review. Record which source material a reviewer saw; prompt wording alone does not create isolation or independent confirmation.
+
+Keep novelty, mathematical correctness, formal verification, and human/AI contribution attribution as separate records. Use checked primary sources with exact hypotheses; mark unread sources as leads. Give the host a minimal artifact, unresolved obligations, reproducible commands, and one highest-value next action. Stop at a budget boundary or useful checkpoint without presenting incompleteness as impossibility.

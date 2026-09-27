@@ -1,0 +1,9 @@
+{
+  "spec_hash": "REPLACE_WITH_CURRENT_SPEC_HASH",
+  "statement_match": false,
+  "assumptions_checked": false,
+  "reviewer": "REPLACE_WITH_ACTUAL_REVIEWER",
+  "issues": [
+    "Draft template: compare the intended informal statement and formal type before clearing these flags."
+  ]
+}

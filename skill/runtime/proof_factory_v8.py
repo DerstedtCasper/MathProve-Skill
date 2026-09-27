@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -202,7 +203,7 @@ def clamp01(value: float) -> float:
         v = float(value)
     except Exception:
         return 0.0
-    return max(0.0, min(1.0, v))
+    return max(0.0, min(1.0, v)) if math.isfinite(v) else 0.0
 
 
 def next_stage(stage: Stage | str) -> Stage | None:
@@ -301,10 +302,21 @@ def score_candidate(candidate: CandidateEvidence, weights: ScoreWeights | None =
 
 
 def select_candidate(candidates: Iterable[CandidateEvidence], threshold: float = 0.72, frontier: bool = False) -> GateDecision:
+    """Rank caller-supplied evidence, not replay or certify a mathematical proof.
+
+    A candidate batch belongs to exactly one stage. Stage identity must never
+    come from a different candidate than the selected result.
+    """
+    if isinstance(threshold, bool) or not isinstance(threshold, (int, float)) or not math.isfinite(threshold) or not 0 <= threshold <= 1:
+        raise ValueError("threshold must be a finite number in [0, 1]")
     items = list(candidates)
     if not items:
         return GateDecision("unknown", None, False, [], "no candidates")
     stage = Stage(items[0].stage)
+    if any(Stage(item.stage) != stage for item in items):
+        raise ValueError("candidate batch must contain exactly one stage")
+    if len({item.candidate_id for item in items}) != len(items):
+        raise ValueError("candidate IDs must be unique within a batch")
     scores = [score_candidate(item, frontier=frontier) for item in items]
     eligible = [score for score in scores if not score.veto_reasons]
     if not eligible:
@@ -400,26 +412,64 @@ def lean_static_audit(lean_source: str, stage: Stage | str = Stage.FINAL_AUDIT) 
     return (not violations, violations)
 
 
-def validate_line_map(items: list[dict[str, Any]]) -> tuple[bool, list[str]]:
+def validate_line_map(items: list[dict[str, Any]], *, external_dependencies: Iterable[str] = ()) -> tuple[bool, list[str]]:
+    """Validate a closed local DAG; external prerequisites must be named explicitly.
+
+    This validates graph structure only, not truth or verification of a dependency.
+    Iterative cycle detection also handles large lemma graphs without recursion.
+    """
     errors: list[str] = []
+    if not isinstance(items, list):
+        return False, ["line map must be a list"]
+    if isinstance(external_dependencies, (str, bytes)):
+        return False, ["external_dependencies must be an iterable of identifiers"]
+    external = set(external_dependencies)
+    if any(not isinstance(value, str) or not value.strip() for value in external):
+        return False, ["external dependency identifiers must be nonempty strings"]
     seen: set[str] = set()
+    graph: dict[str, set[str]] = {}
     for idx, item in enumerate(items):
+        if not isinstance(item, dict):
+            errors.append(f"item {idx}: expected an object")
+            continue
         line_id = str(item.get("line_id") or "").strip()
-        formal_target = str(item.get("formal_target") or "").strip()
-        obligation = str(item.get("obligation") or "").strip()
-        deps = item.get("depends_on") or []
         if not line_id:
             errors.append(f"item {idx}: missing line_id")
         if line_id in seen:
             errors.append(f"item {idx}: duplicate line_id {line_id}")
         seen.add(line_id)
-        if not formal_target:
-            errors.append(f"{line_id}: missing formal_target")
-        if not obligation:
-            errors.append(f"{line_id}: missing obligation")
-        for dep in deps:
-            if str(dep) == line_id:
-                errors.append(f"{line_id}: self dependency")
+        for field_name in ("formal_target", "obligation"):
+            if not str(item.get(field_name) or "").strip():
+                errors.append(f"{line_id}: missing {field_name}")
+        deps = item.get("depends_on", [])
+        if deps is None:
+            deps = []
+        if not isinstance(deps, list) or any(not isinstance(dep, str) or not dep.strip() for dep in deps):
+            errors.append(f"{line_id}: depends_on must be a list of nonempty identifiers")
+            deps = []
+        graph[line_id] = set(deps)
+        if line_id in graph[line_id]:
+            errors.append(f"{line_id}: self dependency")
+    outgoing: dict[str, set[str]] = {name: set() for name in graph}
+    indegree = {name: 0 for name in graph}
+    for name, deps in graph.items():
+        for dep in sorted(deps):
+            if dep in graph:
+                outgoing[dep].add(name)
+                indegree[name] += 1
+            elif dep not in external:
+                errors.append(f"{name}: unknown dependency {dep}")
+    ready = [name for name, degree in indegree.items() if degree == 0]
+    visited = 0
+    while ready:
+        name = ready.pop()
+        visited += 1
+        for child in outgoing[name]:
+            indegree[child] -= 1
+            if indegree[child] == 0:
+                ready.append(child)
+    if visited != len(graph):
+        errors.append("cyclic dependency in line map")
     return (not errors, errors)
 
 
@@ -431,10 +481,10 @@ def make_budget_contract(mode: str = "frontier") -> BudgetContract:
 
 def termination_allowed(status: dict[str, Any]) -> tuple[bool, str]:
     flags = {
-        "final_audit_approved": bool(status.get("final_audit_approved")),
-        "formal_counterexample_found": bool(status.get("formal_counterexample_found")),
-        "theorem_statement_repaired_and_user_visible": bool(status.get("theorem_statement_repaired_and_user_visible")),
-        "environment_blocker_with_replay_log": bool(status.get("environment_blocker_with_replay_log")),
+        "final_audit_approved": status.get("final_audit_approved") is True,
+        "formal_counterexample_found": status.get("formal_counterexample_found") is True,
+        "theorem_statement_repaired_and_user_visible": status.get("theorem_statement_repaired_and_user_visible") is True,
+        "environment_blocker_with_replay_log": status.get("environment_blocker_with_replay_log") is True,
     }
     for key, value in flags.items():
         if value:

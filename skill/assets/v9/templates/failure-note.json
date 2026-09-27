@@ -1,0 +1,12 @@
+{
+  "schema": "mathprove.failure-note.v9",
+  "spec_hash": "REPLACE",
+  "route": "",
+  "assumptions": [],
+  "attempted_step": "",
+  "observed_obstruction": "",
+  "evidence_refs": [],
+  "is_impossibility_proof": false,
+  "retry_only_if_new_information": "",
+  "next_action": ""
+}

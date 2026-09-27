@@ -1,0 +1,22 @@
+{
+  "schema": "mathprove.novelty-note.v9",
+  "as_of": "YYYY-MM-DD",
+  "spec_hash": "REPLACE",
+  "claims": [],
+  "nearest_prior_art": [
+    {
+      "source": "",
+      "version": "",
+      "exact_location": "",
+      "actually_read": false,
+      "hypotheses_comparison": "",
+      "conclusion_comparison": "",
+      "method_comparison": "",
+      "overlap_remaining": "unknown"
+    }
+  ],
+  "search_queries_and_scopes": [],
+  "unavailable_sources": [],
+  "novelty_status": "not_assessed",
+  "warning": "No match found is not a proof of novelty; formal correctness and novelty are separate assessments."
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "mathprove.experiment-note.v9",
+  "spec_hash": "REPLACE",
+  "question": "REPLACE",
+  "domain_and_assumptions": [],
+  "method": "exact|symbolic|bounded_exhaustive|numerical_sampling",
+  "seed": null,
+  "input_artifacts": [],
+  "script": "",
+  "command_argv": [],
+  "tool_versions": {},
+  "executed": false,
+  "exit_code": null,
+  "output_artifacts": [],
+  "observations": [],
+  "counterexample_witness": null,
+  "limitations": [
+    "UNEXECUTED TEMPLATE"
+  ],
+  "next_discriminating_test": ""
+}

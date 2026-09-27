@@ -1,0 +1,83 @@
+{
+  "scope": "standalone original/patched module, not full CoMath build or Lean replay",
+  "results": [
+    {
+      "name": "plain",
+      "expected": "ok",
+      "observed": "ok",
+      "pass": true
+    },
+    {
+      "name": "apostrophe",
+      "expected": "ok",
+      "observed": "ok",
+      "pass": true
+    },
+    {
+      "name": "Greek",
+      "expected": "ok",
+      "observed": "ok",
+      "pass": true
+    },
+    {
+      "name": "subscript",
+      "expected": "ok",
+      "observed": "ok",
+      "pass": true
+    },
+    {
+      "name": "qualified Unicode",
+      "expected": "ok",
+      "observed": "ok",
+      "pass": true
+    },
+    {
+      "name": "name collision",
+      "expected": "missing",
+      "observed": "missing",
+      "pass": true
+    },
+    {
+      "name": "namespace collision",
+      "expected": "missing",
+      "observed": "missing",
+      "pass": true
+    },
+    {
+      "name": "underscore collision",
+      "expected": "missing",
+      "observed": "missing",
+      "pass": true
+    },
+    {
+      "name": "longer name",
+      "expected": "missing",
+      "observed": "missing",
+      "pass": true
+    },
+    {
+      "name": "universe",
+      "expected": "ok",
+      "observed": "ok",
+      "pass": true
+    },
+    {
+      "name": "no space before colon",
+      "expected": "ok",
+      "observed": "ok",
+      "pass": true
+    },
+    {
+      "name": "duplicate signature",
+      "expected": "ok",
+      "observed": "ok",
+      "pass": true
+    },
+    {
+      "name": "ambiguous",
+      "expected": "ambiguous",
+      "observed": "ambiguous",
+      "pass": true
+    }
+  ]
+}

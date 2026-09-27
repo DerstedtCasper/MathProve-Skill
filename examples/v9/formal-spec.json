@@ -1,0 +1,14 @@
+{
+  "mode": "formal",
+  "statement": "For every natural number n, n equals itself. This is an elementary workflow demonstration, not novel research.",
+  "assumptions": [],
+  "symbols": {
+    "n": "natural number"
+  },
+  "lean": {
+    "project": "lean-demo",
+    "module": "Demo",
+    "declaration": "Demo.target",
+    "expected_type": "∀ n : Nat, n = n"
+  }
+}

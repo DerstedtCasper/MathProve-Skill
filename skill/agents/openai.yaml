@@ -1,5 +1,6 @@
 interface:
-  display_name: MathProve
-  short_description: High-rigor mathematical proof factory with Lean/SymPy evidence gates.
-  icon: calculator
-  brand_color: '#3657d8'
+  display_name: "MathProve Research"
+  short_description: "Persistent mathematical research with evidence gates and Lean checks"
+  default_prompt: "Use $mathprove-skill to start or resume this mathematical research project. Inspect the workspace before planning, preserve the statement lock, and distinguish research evidence from formal verification."
+policy:
+  allow_implicit_invocation: false

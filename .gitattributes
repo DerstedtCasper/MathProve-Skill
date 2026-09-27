@@ -1,0 +1,4 @@
+# The v9 overlay verifies release bytes by SHA-256. Keep text checkouts stable
+# across Windows clients with core.autocrlf enabled.
+* text=auto eol=lf
+*.docx -text

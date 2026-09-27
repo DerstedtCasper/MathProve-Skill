@@ -1,0 +1,33 @@
+{
+  "version": "9.0.0-rc1",
+  "local_date": "2026-09-27",
+  "timezone": "Australia/Brisbane",
+  "environment": {
+    "python": "3.13.5",
+    "platform": "linux",
+    "sqlite": "3.46.1",
+    "lean_available": false,
+    "lake_available": false,
+    "codex_available": false
+  },
+  "command": "python -m unittest discover -s tests_v9 -p 'test_*.py' -v",
+  "tests_run": 121,
+  "passed": 119,
+  "skipped": 2,
+  "failures": 0,
+  "errors": 0,
+  "elapsed_seconds": 10.93,
+  "skipped_cases": {
+    "test_native_windows_hook": "Linux delivery environment; no native Windows execution",
+    "test_live_lean_opt_in": "Lean/lake unavailable; explicit opt-in required"
+  },
+  "additional_manual_smoke": {
+    "five_research_gates": true,
+    "release_without_human_review_blocked": true,
+    "install_in_path_with_spaces": true,
+    "installed_handler_subprocess_from_subdir": true,
+    "live_Codex_host": false,
+    "live_Lean": false
+  },
+  "claim_scope": "New portable implementation only, not full original-repository regression or mathematical correctness of original research"
+}

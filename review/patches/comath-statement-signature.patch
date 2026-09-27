@@ -1,0 +1,11 @@
+--- a/services/comathd/src/proof-kernel/lean/statement-signature.ts
++++ b/services/comathd/src/proof-kernel/lean/statement-signature.ts
+@@ -23,7 +23,7 @@
+ 
+ function signaturePattern(theoremName: string): RegExp {
+   const escapedTheorem = theoremName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+-  return new RegExp(`^${escapedTheorem}\\b.*:\\s*.+$`);
++  return new RegExp(`^${escapedTheorem}(?:\\.\\{[^}\\r\\n]*\\})?(?=\\s|:).*:\\s*.+$`);
+ }
+ 
+ function typeFromSignature(signature: string, theoremName: string): string {

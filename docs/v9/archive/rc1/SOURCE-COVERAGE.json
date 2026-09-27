@@ -1,0 +1,143 @@
+{
+  "schema": "mathprove.source-coverage.v9",
+  "review_date_local": "2026-09-27",
+  "timezone": "Australia/Brisbane",
+  "git_clone_succeeded": false,
+  "network_limitation": "Container Git/download network access failed; partial public web access available",
+  "repositories": [
+    {
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab",
+      "pinned_commit": null,
+      "read": [
+        "public root README/design/API description"
+      ],
+      "not_read": [
+        "complete repository tree",
+        "services/comathd implementation",
+        "extensions/comath-pi implementation",
+        "prompt registry",
+        "proof-kernel",
+        "tests and QA",
+        "full git history"
+      ]
+    },
+    {
+      "url": "https://github.com/DerstedtCasper/MathProve-Skill",
+      "pinned_commit": null,
+      "read": [
+        "public root README",
+        "raw skill/SKILL.md"
+      ],
+      "not_read": [
+        "v8 runtime modules",
+        "legacy state schemas",
+        "full tests",
+        "legacy installers",
+        "full git history"
+      ]
+    }
+  ],
+  "delivery": "independent additive overlay; not a complete upstream snapshot",
+  "research_sources": [
+    {
+      "id": "S01",
+      "title": "CoMath repository README/design",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab",
+      "coverage": "public root README; implementation not retrieved; cached view, HEAD not pinned"
+    },
+    {
+      "id": "S02",
+      "title": "MathProve-Skill repository README",
+      "url": "https://github.com/DerstedtCasper/MathProve-Skill",
+      "coverage": "public root README; old runtime modules not retrieved"
+    },
+    {
+      "id": "S03",
+      "title": "MathProve old skill entrypoint",
+      "url": "https://raw.githubusercontent.com/DerstedtCasper/MathProve-Skill/main/skill/SKILL.md",
+      "coverage": "raw entrypoint text retrieved; cached, not a pinned commit"
+    },
+    {
+      "id": "S04",
+      "title": "OpenAI: Early experiments in accelerating science with GPT-5 (2025-11-20)",
+      "url": "https://openai.com/index/accelerating-science-gpt-5/",
+      "coverage": "official article reviewed; linked full PDF not analyzed"
+    },
+    {
+      "id": "S05",
+      "title": "Towards Autonomous Mathematics Research, arXiv:2602.10177 (v3 2026-03-06)",
+      "url": "https://arxiv.org/abs/2602.10177",
+      "coverage": "primary abstract/version metadata; full paper PDF not analyzed"
+    },
+    {
+      "id": "S06",
+      "title": "Anthropic: How we built our multi-agent research system (2025-06-13)",
+      "url": "https://www.anthropic.com/engineering/multi-agent-research-system",
+      "coverage": "official engineering article"
+    },
+    {
+      "id": "S07",
+      "title": "Anthropic: Effective harnesses for long-running agents (2025-11-26)",
+      "url": "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents",
+      "coverage": "official engineering article"
+    },
+    {
+      "id": "S08",
+      "title": "Anthropic: Effective context engineering for AI agents",
+      "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
+      "coverage": "official engineering article"
+    },
+    {
+      "id": "S09",
+      "title": "Columbia DAPLab: Fermat / theorem-proving agents (2026-09-09)",
+      "url": "https://daplab.cs.columbia.edu/general/2026/09/09/fermats-last-theorem-agents.html",
+      "coverage": "search excerpt only; subsequent full-page fetch failed; no result/completion claims used"
+    },
+    {
+      "id": "S10",
+      "title": "Codex: Hooks",
+      "url": "https://developers.openai.com/codex/hooks",
+      "coverage": "official documentation, redirects to learn.chatgpt.com/docs/hooks; native host execution not available"
+    },
+    {
+      "id": "S11a",
+      "title": "Codex: Subagents",
+      "url": "https://developers.openai.com/codex/subagents",
+      "coverage": "official custom-agent configuration documentation"
+    },
+    {
+      "id": "S11b",
+      "title": "Codex: Skills",
+      "url": "https://developers.openai.com/codex/skills",
+      "coverage": "official skill discovery/metadata documentation"
+    },
+    {
+      "id": "S12",
+      "title": "OpenAI: Ten advances in mathematics and theoretical computer science (2026-08-01)",
+      "url": "https://openai.com/index/ten-advances-in-mathematics/",
+      "coverage": "official summary article only; manuscripts/certificates not independently replayed"
+    },
+    {
+      "id": "S13a",
+      "title": "GitHub Actions checkout releases",
+      "url": "https://github.com/actions/checkout/releases",
+      "coverage": "official v7 release listing; CI workflow not run remotely"
+    },
+    {
+      "id": "S13b",
+      "title": "GitHub Actions setup-python",
+      "url": "https://github.com/actions/setup-python",
+      "coverage": "official v7 README; CI workflow not run remotely"
+    }
+  ],
+  "unperformed_validation": [
+    "full upstream regression",
+    "actual CoMath daemon/Pi integration",
+    "real Lean/lake invocation",
+    "native Codex hook lifecycle",
+    "native Windows execution",
+    "remote GitHub Actions run",
+    "matched mathematical productivity benchmark"
+  ],
+  "no_changes_to_remote_repositories": true
+}

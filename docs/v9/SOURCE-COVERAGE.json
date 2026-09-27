@@ -1,0 +1,322 @@
+{
+  "schema": "mathprove.source-review.v2",
+  "version": "9.0.0-rc2",
+  "date_local": "2026-09-27",
+  "timezone": "Australia/Brisbane",
+  "full_upstream_checkout": false,
+  "upstream_full_source_audited": false,
+  "remote_changed": false,
+  "retrieval_summary": "GitHub connector source reads succeeded. Container git clone/download failed due DNS. Selected source files, not full repositories, were materialized.",
+  "repositories": {
+    "comath-pi-lab": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+    "MathProve-Skill": "e4aaf6abec8c05bc5186d635b06b56152442380b"
+  },
+  "files": [
+    {
+      "id": "C01",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "CONTRIBUTING.md",
+      "reading_extent": "complete text",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/CONTRIBUTING.md",
+      "transport": "GitHub connector",
+      "materialized_original": false
+    },
+    {
+      "id": "C02",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "docs/architecture/durable-research-orchestration.md",
+      "reading_extent": "complete text",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/docs/architecture/durable-research-orchestration.md",
+      "transport": "GitHub connector",
+      "materialized_original": false
+    },
+    {
+      "id": "C03",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/src/agents/agent-profiles.ts",
+      "reading_extent": "profile declarations and selected launch/validation code; not complete file audit",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/src/agents/agent-profiles.ts",
+      "transport": "GitHub connector",
+      "reported_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "materialized_original": false
+    },
+    {
+      "id": "C04",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/src/agents/role-templates.ts",
+      "reading_extent": "complete text",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/src/agents/role-templates.ts",
+      "transport": "GitHub connector",
+      "materialized_original": false
+    },
+    {
+      "id": "C05",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/src/research/context-pack-builder.ts",
+      "reading_extent": "complete text",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/src/research/context-pack-builder.ts",
+      "transport": "GitHub connector",
+      "materialized_original": false
+    },
+    {
+      "id": "C06",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/src/research/context-service.ts",
+      "reading_extent": "complete text in two ranges",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/src/research/context-service.ts",
+      "transport": "GitHub connector",
+      "reported_git_blob": "02b63eacf8437a3a129a4975978aeff67a6d964e",
+      "materialized_original": false
+    },
+    {
+      "id": "C07",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/src/agents/runtime/worker-execution-host.ts",
+      "reading_extent": "selected leading lifecycle/dispatch/event/accounting code; final response truncated",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/src/agents/runtime/worker-execution-host.ts",
+      "transport": "GitHub connector",
+      "materialized_original": false
+    },
+    {
+      "id": "C08",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/src/agents/runtime/codex-app-server-adapter.ts",
+      "reading_extent": "lines 1-140; rest not read",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/src/agents/runtime/codex-app-server-adapter.ts",
+      "transport": "GitHub connector",
+      "reported_git_blob": "1f24a1fa7c3e64ef4c517e95a11a19ed990183be",
+      "materialized_original": false
+    },
+    {
+      "id": "C09",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/src/control/research-mcp-facade.ts",
+      "reading_extent": "complete text across overlapping ranges",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/src/control/research-mcp-facade.ts",
+      "transport": "GitHub connector",
+      "reported_git_blob": "e9d9a9e54b6b87f272715c4614635d438e904774",
+      "materialized_original": false
+    },
+    {
+      "id": "C10",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/src/proof-kernel/lean/statement-signature.ts",
+      "reading_extent": "complete text; exact Git blob materialized; original and patched standalone execution",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/src/proof-kernel/lean/statement-signature.ts",
+      "transport": "GitHub connector",
+      "reported_git_blob": "7d5dab316a75180649016872f724a6718e618e70",
+      "materialized_original": true,
+      "bytes": 4007,
+      "verified_git_blob": "7d5dab316a75180649016872f724a6718e618e70",
+      "sha256": "433b29c72399eb143fd71a1b352c85992a4d9dc6d39b573d9f26c806efd7e84c"
+    },
+    {
+      "id": "C11",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/src/proof-kernel/lean/statement-equivalence.ts",
+      "reading_extent": "lines 1-170 plus symbol-reference search; not complete checker",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/src/proof-kernel/lean/statement-equivalence.ts",
+      "transport": "GitHub connector",
+      "reported_git_blob": "ea6de954ec37917e3e27d2b83b70e5f35c4e90f5",
+      "materialized_original": false
+    },
+    {
+      "id": "C12",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/src/proof-kernel/lean/statement-diff-gate.ts",
+      "reading_extent": "complete text; not integration-tested",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/src/proof-kernel/lean/statement-diff-gate.ts",
+      "transport": "GitHub connector",
+      "materialized_original": false
+    },
+    {
+      "id": "C13",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/src/proof-kernel/ensemble/service-owned-lean-evidence.ts",
+      "reading_extent": "lines 1-150; downstream verifier dependencies not fully read",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/src/proof-kernel/ensemble/service-owned-lean-evidence.ts",
+      "transport": "GitHub connector",
+      "reported_git_blob": "99149d06ad1c6f1a4f405ee18cf7f1baebcf710f",
+      "materialized_original": false
+    },
+    {
+      "id": "C14",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": ".pi/agents/formalization.md",
+      "reading_extent": "complete text",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/.pi/agents/formalization.md",
+      "transport": "GitHub connector",
+      "reported_git_blob": "4c9e6ae1383cd0fb13fc95adf4d258e1e6e92bba",
+      "materialized_original": false
+    },
+    {
+      "id": "C15",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/package.json",
+      "reading_extent": "complete text",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/package.json",
+      "transport": "GitHub connector",
+      "reported_git_blob": "60eab14efbecbac514f9a9e8fbbf853b515b855d",
+      "materialized_original": false
+    },
+    {
+      "id": "C16",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/tsconfig.json",
+      "reading_extent": "complete text",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/tsconfig.json",
+      "transport": "GitHub connector",
+      "reported_git_blob": "8a2969c8591b6d2d21b65b61e4bfb21798c2fd36",
+      "materialized_original": false
+    },
+    {
+      "id": "C17",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/src/agents/agent-run-scheduler.ts",
+      "reading_extent": "selected leading scheduling code (request lines 1-240); not full scheduler audit",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/src/agents/agent-run-scheduler.ts",
+      "transport": "GitHub connector",
+      "materialized_original": false
+    },
+    {
+      "id": "C18",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/src/agents/runtime/codex-api-adapter.ts",
+      "reading_extent": "complete text; retries not run",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/src/agents/runtime/codex-api-adapter.ts",
+      "transport": "GitHub connector",
+      "reported_git_blob": "6a5779c799057bb62f98272a9b6786d32d005eb0",
+      "materialized_original": false
+    },
+    {
+      "id": "C19",
+      "repository": "DerstedtCasper/comath-pi-lab",
+      "commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
+      "path": "services/comathd/src/errors.ts",
+      "reading_extent": "complete text",
+      "url": "https://github.com/DerstedtCasper/comath-pi-lab/blob/e8e0182823b383cb228802c4d70f3309bf0a698c/services/comathd/src/errors.ts",
+      "transport": "GitHub connector",
+      "reported_git_blob": "129b1c8ec306f3967b79baec323081d7727b4390",
+      "materialized_original": false
+    },
+    {
+      "id": "M01",
+      "repository": "DerstedtCasper/MathProve-Skill",
+      "commit": "e4aaf6abec8c05bc5186d635b06b56152442380b",
+      "path": "skill/runtime/proof_factory_v8.py",
+      "reading_extent": "complete text; exact Git blob materialized; original function reproductions and patched tests",
+      "url": "https://github.com/DerstedtCasper/MathProve-Skill/blob/e4aaf6abec8c05bc5186d635b06b56152442380b/skill/runtime/proof_factory_v8.py",
+      "transport": "GitHub connector",
+      "reported_git_blob": "6f362d40efd0cd2a183f2ceb70889b84d46f7f97",
+      "materialized_original": true,
+      "bytes": 20244,
+      "verified_git_blob": "6f362d40efd0cd2a183f2ceb70889b84d46f7f97",
+      "sha256": "259af4d493e8c455eea5dffc073ae02e51408942d70dd377dc1e2186544c67cc"
+    },
+    {
+      "id": "M02",
+      "repository": "DerstedtCasper/MathProve-Skill",
+      "commit": "e4aaf6abec8c05bc5186d635b06b56152442380b",
+      "path": "skill/runtime/moe_router_v8.py",
+      "reading_extent": "complete text; exact Git blob materialized",
+      "url": "https://github.com/DerstedtCasper/MathProve-Skill/blob/e4aaf6abec8c05bc5186d635b06b56152442380b/skill/runtime/moe_router_v8.py",
+      "transport": "GitHub connector",
+      "reported_git_blob": "ce5444abc91f185cba5a000291fc7c61dc0abb6f",
+      "materialized_original": true,
+      "bytes": 1912,
+      "verified_git_blob": "ce5444abc91f185cba5a000291fc7c61dc0abb6f",
+      "sha256": "1cbc3c356c444531b12d61f03404109789c821ed11791211d19e701380aff6a4"
+    },
+    {
+      "id": "M03",
+      "repository": "DerstedtCasper/MathProve-Skill",
+      "commit": "e4aaf6abec8c05bc5186d635b06b56152442380b",
+      "path": "tests/test_proof_factory_v8.py",
+      "reading_extent": "complete text; exact Git blob materialized; all 4 selected tests run",
+      "url": "https://github.com/DerstedtCasper/MathProve-Skill/blob/e4aaf6abec8c05bc5186d635b06b56152442380b/tests/test_proof_factory_v8.py",
+      "transport": "GitHub connector",
+      "reported_git_blob": "b90d2413997c331d539ce95b7dafa929dce2f9b1",
+      "materialized_original": true,
+      "bytes": 1276,
+      "verified_git_blob": "b90d2413997c331d539ce95b7dafa929dce2f9b1",
+      "sha256": "1780c1ce2344e800d987eb22f92174db2ae102c31852eb0301fb8dad6b0f6909"
+    },
+    {
+      "id": "M04",
+      "repository": "DerstedtCasper/MathProve-Skill",
+      "commit": "e4aaf6abec8c05bc5186d635b06b56152442380b",
+      "path": "skill/scripts/proof_factory_v8.py",
+      "reading_extent": "complete CLI wrapper text",
+      "url": "https://github.com/DerstedtCasper/MathProve-Skill/blob/e4aaf6abec8c05bc5186d635b06b56152442380b/skill/scripts/proof_factory_v8.py",
+      "transport": "GitHub connector",
+      "reported_git_blob": "be5a5eca6f4ed2528add5e88f29f4b2155e42b48",
+      "materialized_original": false
+    },
+    {
+      "id": "M05",
+      "repository": "DerstedtCasper/MathProve-Skill",
+      "commit": "e4aaf6abec8c05bc5186d635b06b56152442380b",
+      "path": "skill/scripts/final_audit.py",
+      "reading_extent": "lines 1-150; rest and full release call graph not read",
+      "url": "https://github.com/DerstedtCasper/MathProve-Skill/blob/e4aaf6abec8c05bc5186d635b06b56152442380b/skill/scripts/final_audit.py",
+      "transport": "GitHub connector",
+      "reported_git_blob": "5657aa645cbd1082bbd46a87cbec7c104cff646b",
+      "materialized_original": false
+    },
+    {
+      "id": "M06",
+      "repository": "DerstedtCasper/MathProve-Skill",
+      "commit": "e4aaf6abec8c05bc5186d635b06b56152442380b",
+      "path": "LICENSE",
+      "reading_extent": "complete text",
+      "url": "https://github.com/DerstedtCasper/MathProve-Skill/blob/e4aaf6abec8c05bc5186d635b06b56152442380b/LICENSE",
+      "transport": "GitHub connector",
+      "reported_git_blob": "d6e2db300e1284e9bd658cc166f09ecd08ffda21",
+      "materialized_original": false
+    },
+    {
+      "id": "M07",
+      "repository": "DerstedtCasper/MathProve-Skill",
+      "commit": "e4aaf6abec8c05bc5186d635b06b56152442380b",
+      "path": "MATHPROVE_V7_PATCH_NOTES.md",
+      "reading_extent": "complete text",
+      "url": "https://github.com/DerstedtCasper/MathProve-Skill/blob/e4aaf6abec8c05bc5186d635b06b56152442380b/MATHPROVE_V7_PATCH_NOTES.md",
+      "transport": "GitHub connector",
+      "reported_git_blob": "d84b336ff2180371342139770abeb2803c643c20",
+      "materialized_original": false
+    }
+  ],
+  "symbol_searches": [
+    "CoMath getRoleTemplate references",
+    "CoMath buildPrompt consumer chain",
+    "CoMath extractLeanStatementSignature references",
+    "MathProve select_candidate references"
+  ],
+  "limitations": [
+    "Whole proof-kernel, transitive manifest verifiers and clean replay were not completely inspected",
+    "A file in a repository tree is not counted as read source",
+    "Private QA and full history not obtained",
+    "No complete upstream build/test run",
+    "No live Lean/lake, Codex or CoMath integration",
+    "No full papers/PDFs analyzed",
+    "No mathematical productivity benchmark"
+  ]
+}

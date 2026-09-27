@@ -1,0 +1,4 @@
+# OPTIONAL manual merge into an existing [agents] table; do not duplicate the table.
+# The installer intentionally does not write this into config.toml.
+[agents]
+max_concurrent_threads_per_session = 2

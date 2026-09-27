@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "$id": "urn:mathprove:v9:spec",
+  "required": [
+    "mode",
+    "statement",
+    "assumptions",
+    "symbols"
+  ],
+  "properties": {
+    "mode": {
+      "enum": [
+        "research",
+        "formal"
+      ]
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "symbols": {
+      "type": "object"
+    },
+    "lean": {
+      "type": "object",
+      "required": [
+        "project",
+        "module",
+        "declaration",
+        "expected_type"
+      ],
+      "properties": {
+        "project": {
+          "type": "string",
+          "minLength": 1
+        },
+        "module": {
+          "type": "string",
+          "minLength": 1
+        },
+        "declaration": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected_type": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "formal"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "lean"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "$id": "urn:mathprove:v9:task-result",
+  "required": [
+    "task_id",
+    "spec_hash",
+    "outcome",
+    "summary",
+    "next_action"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string"
+    },
+    "spec_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "outcome": {
+      "enum": [
+        "candidate",
+        "blocked",
+        "refuted",
+        "no_progress"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 6000
+    },
+    "next_action": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 3000
+    },
+    "artifacts": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

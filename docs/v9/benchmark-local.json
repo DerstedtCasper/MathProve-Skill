@@ -1,0 +1,6 @@
+{
+  "version": "9.0.0-rc2",
+  "new_benchmark_run": false,
+  "historical_rc1_record": "archive/rc1/benchmark-local.json",
+  "notice": "No RC2 or CoMath mathematical productivity benchmark was run. Historical process-start timings are not speedup evidence."
+}
