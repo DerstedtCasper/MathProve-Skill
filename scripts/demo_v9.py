@@ -28,6 +28,6 @@ def main():
     cp=store.checkpoint(a.run,'demo-handoff')
     print(json.dumps({'run_id':a.run,'mode':'research','gates':gates,'checkpoint':cp,
                       'human_review_recorded':False,'formal_proof_claimed':False,
-                      'next_action':'Inspect status and the example artifacts. Human review remains an explicit operator step.'},ensure_ascii=False,indent=2))
+                      'next_action':'Inspect status and the example artifacts. Optional mathematical review can be recorded without extra approval.'},ensure_ascii=False,indent=2))
     return 0 if all(g['accepted'] for g in gates) else 2
 if __name__=='__main__':raise SystemExit(main())

@@ -1,6 +1,8 @@
 # CoMath profile supplement: formalization
 
-Audited source: `e8e0182823b383cb228802c4d70f3309bf0a698c` / `services/comathd/src/agents/agent-profiles.ts`.
+Historical registry reference: `e8e0182823b383cb228802c4d70f3309bf0a698c` / `services/comathd/src/agents/agent-profiles.ts`; not a version requirement.
+No source-version or hash acceptance: discover capabilities from the current service.
+Use current compatible Lean/mathlib and service sources; retain exact assumptions and compile verification.
 Registry ID: `formalization`; role enum: `formalization`.
 
 ## CoMath host contract (not a new runtime schema)
@@ -9,7 +11,7 @@ Registry ID: `formalization`; role enum: `formalization`.
 
 The legacy registry's tool names listed below are provenance, NOT a live allowlist. Durable workers must obey only the exact service-supplied allowed research tool IDs, scope, generation, budget and artifact visibility. Do not copy portable `mathprove.py`, SQLite gate labels, lease tokens or portable JSON outcomes into CoMath.
 
-The Pi child-agent report, durable research_result, checkpoint and formal_candidate are different host contracts. Follow the actual supplied schema. A breakthrough is nonterminal; submit the appropriate separate final progress/failure/statement draft when the assigned workflow requires it. For formal_candidate tasks follow the candidate receipt contract. Source/spec/interface changes require host-mediated revalidation.
+The Pi child-agent report, durable research_result, checkpoint and formal_candidate are different host contracts. Follow the actual supplied schema. A breakthrough is nonterminal; submit the appropriate separate final progress/failure/statement draft when the assigned workflow requires it. For formal_candidate tasks follow the candidate receipt contract. Recheck mathematical statements and interface compatibility when they change; source updates require no version or hash acceptance.
 
 This is an integration-ready prompt supplement, not an installed profile. Preserve the existing `.pi/agents` frontmatter and invariants. The durable path builds prompts through context-service.ts: a host-reviewed, versioned tool_instructions artifact must be added to that path before these instructions affect background workers. Never relabel a proof-containing prompt as blind-safe.
 

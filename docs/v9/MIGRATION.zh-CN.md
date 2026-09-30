@@ -1,86 +1,45 @@
-# 安装、合并与回退
+# MathProve 9.1 安装与研究记录
 
-## 1. 区分两个动作
+## 使用原则
 
-**合并源码**是把本包送进你的 MathProve-Skill Git 仓库；**安装 skill**是把受审版本部署到一个具体研究项目。两者不要混为一谈，研究数据库不属于 skill 源码。
+这是数学研究工作台，不是源码审计或发布审批系统。当前规范以仓库 README、`skill/SKILL.md` 和 `skill/references/v9/` 为准。RC1／RC2 报告仅保留历史信息，其中的固定版本、源码指纹、哈希验收和重复审批不适用于 9.1。
 
-本包已读取固定提交的重要源码，但没有完整上游 clone，也不声称整仓行为验证。`README.md`、`skill/SKILL.md`、`skill/agent.md` 等已存在的同名文件可能被替换；未知旧文件原样保留。因此这是“带备份的覆盖文件集”，不是自动三方合并，也不能保证旧安装器/启动器已经重定向到 v9。
+## 安装或更新技能
 
-## 2. 建立本地分支，预览覆盖范围
+在源码仓库中运行以下命令，将技能部署至已有研究目录：
 
-先在你自己的克隆中确认工作区状态，提交或妥善保存既有修改。下面解压目录名按 ZIP 顶层目录设置，目标路径自行替换：
-
-```sh
-cd /path/to/MathProve-Skill
-# 先审查当前状态；不要让新覆盖掩盖未保存修改。
-git status --short
-git switch -c review/mathprove-v9
-
-python /path/to/MathProve-Skill-v9/scripts/apply_v9_overlay.py --target /path/to/MathProve-Skill --dry-run
-python /path/to/MathProve-Skill-v9/scripts/apply_v9_overlay.py --target /path/to/MathProve-Skill --apply
+```powershell
+python scripts/install_v9.py --project D:/research/project --dry-run
+python scripts/install_v9.py --project D:/research/project --upgrade
 ```
 
-覆盖脚本在任何写入前先检查旧 `skill/runtime/proof_factory_v8.py` 的 Git blob 指纹（或已相同的修补结果），再校验 `RELEASE-MANIFEST.json` 中全部文件的 SHA-256。目标缺少该上游文件或内容已分叉时拒绝写入，请人工审阅 `review/patches/mathprove-v8-validation.patch`。Git 可用且目标在仓库内时，也会拒绝覆盖有 staged/unstaged/untracked 改动的计划路径；不相关的用户改动保留。没有 Git 时只能报告无法检查 Git 状态，不能宣称目标干净。原始字节检查可能拒绝换成 CRLF 的工作树，应人工合并，不要强制覆盖。不会删除旧文件、不会处理旧数据库、不会自动提交或推送。同名旧内容备份到 `.mathprove-v9-overlay-backups/<id>/`；发生写入错误时尝试回滚此次已写文件。哈希防止包损坏，不是作者签名；先确认 ZIP 来源。
+安装器复制 v9 入口、角色、模板和运行时，保留被替换内容的备份，不删除未知文件或研究数据库。可使用 `--no-hooks`／`--no-agents` 只安装需要的部分；普通数学问题不要求数据库、全部角色或完整阶段流程。
 
-接着审阅 tracked diff 与新文件。`git diff` 不会显示未跟踪的新文件正文，应同时检查 `git status --short` 和 manifest。把 `gitignore.v9.snippet` 中的规则合并进现有 `.gitignore`，不要覆盖原规则。只暂存确认过的源码、模板和文档，不要提交备份或研究状态。
+更新全局技能时，将源码 `skill/` 中的 `SKILL.md`、`agent.md`、`agents/openai.yaml`、v9 运行时、v9 资料与实际使用的 `scripts/mathprove*.py` 同步到宿主发现的技能目录。不要把保留的旧 `skill/runtime/` 当成新入口复制。保留本地定制、其他技能及宿主已有配置；无需为更新说明重新安装全局 Hooks。
 
-```sh
-python -m unittest discover -s tests_v9 -p 'test_*.py' -v
-git diff --check
-git diff --stat
-git status --short
+Snow Hook 使用方式见 `SNOW-HOOKS.md`。技能文件更新后，下次扫描或调用会加载新内容；已加载的会话上下文不会被追溯改写。
+
+## 源码文件集覆盖
+
+`apply_v9_overlay.py` 可预览并应用已有仓库的文件集覆盖：
+
+```powershell
+python scripts/apply_v9_overlay.py --target D:/research/MathProve-Skill --dry-run
+python scripts/apply_v9_overlay.py --target D:/research/MathProve-Skill --apply
 ```
 
-旧测试、旧安装器和打包逻辑仍需你在真实完整仓库里运行并审阅。本次只单独运行了原 v8 核心对应的 4 个上游测试，不能据此声称全部旧测试或私有 QA 已通过。本包不更改原 LICENSE；不要将 CoMath 原文件一起重新标为 MIT。
+`RELEASE-MANIFEST.json` 使用文件路径列表，不包含哈希或旧源码提交前置条件。覆盖器比较实际内容判断是否需要复制，保留旧内容备份和目标未提交改动，不删除未知文件，不自动提交或推送。
 
-## 3. 安装到研究根目录
+## 数学研究与 Lean 验证
 
-```sh
-python scripts/install_v9.py --project /absolute/research/project --dry-run
-python scripts/install_v9.py --project /absolute/research/project
-```
+持续项目可通过 `doctor`、`init`、`status` 恢复记录，具体命令见 `skill/references/v9/operations.md`。目标修订使用 `revise`；工作笔记可正常编辑。注册证据是历史副本，结论的数学含义变化时重新登记或撤回，不把旧回执当成新证明。
 
-只复制白名单 v9 文件到 `.agents/skills/mathprove-skill/`。不会把保留的旧 v8 scripts/runtime 偷渡到新安装。存在不同的受管理内容时，审查后使用 `--upgrade`；差异备份到 `.mathprove-install-backups/<id>/`。重复安装相同版本不会无谓改写 hooks 或使信任哈希变化。
+使用最新互相兼容的 Lean／mathlib。mathlib 项目跟随当前 mathlib 要求的工具链，不独立强推不兼容的 Lean。正常 Lake 元数据和缓存可以保留，不要求固定依赖提交、冷重建或哈希检查。示例的 `stable` 只用于没有 mathlib 的基础项目。
 
-安装器合并 `.codex/hooks.json`，同一个 matcher group 里的第三方 handler 也会保留。其他 hooks 来源（用户级、inline、插件）可能仍并行运行；请在 `/hooks` 中检查重复触发。它不编辑 `.codex/config.toml`、全局文件、permission 或 trust。`integrations/codex/config.snippet.toml` 仅供你手动选择并发设置。
+`verify` 在实际项目执行 `lake build` 和精确目标类型检查，并读取公理依赖，不需要额外 `--allow-build`。数学审阅可直接记为普通 review，不要求 `--human-ack`。检查点失败只提示，不阻止停止。
 
-旧版本若安装在 `.codex/skills/...`、另一个 `.agents/skills` 目录或插件中，请先查明宿主实际发现了哪些入口，再手动停用旧副本，避免两套协议同时生效；脚本不会擅自删除它们。不要同时用原生安装和另一个打包插件重复加载相同 hooks。
+实际编译未执行或失败、目标类型不匹配、存在 `sorryAx` 或未说明额外公理时，不标记为完成证明。Lean 未安装时继续数学研究，并记录形式验证待完成。旧 v8 状态不自动冒充新验证结果；已有 v9 SQLite 字段保留兼容，不清空研究进度。
 
-## 4. 启动与迁移研究内容
+## CoMath-backed
 
-新建 `.mathprove` 控制器状态；不要把 v8 数据库文件改名冒充 v9。旧成果先作为普通候选/文献/实验材料引入，记录原始来源。新 spec 经审阅锁定后，重新走相应门禁，形式化目标重新验证。旧“成功”标签不自动保留。
-
-安装完成后运行 `doctor`，缺少 Lean/lake 时研究模式仍可工作；形式模式不能改用 LLM 输出顶替验证。Lean 示例锁定 v4.19.0 仅为固定演示输入，不表示建议升级/降级你的现有数学项目；实际项目保留其已经审阅的兼容工具链与 mathlib commit。
-
-## 5. 操作者授权与工作区安全
-
-本地 `review --human-ack` 是你在终端上明确执行的步骤，不应让 agent 自行调用。它不能认证物理操作者；CoMath-backed 模式复用原服务的 host-only 授权边界，operator MCP 只能请求其审批，不能替代人工批准。陌生 Lake/依赖代码先审阅，在受控隔离环境里运行；`--allow-build` 不是安全沙箱。
-
-SQLite 状态应放在本地盘。备份需要在线 SQLite backup API，或停止所有写入后连同所需文件一致性备份，不能只复制一个活动数据库漏掉 WAL。公开 ZIP 导出前检查未发表研究与评审备注。
-
-## 6. 回退
-
-合并源码前创建分支、保存现有修改，是最清晰的回退边界。发生兼容问题时，先停止使用 v9 入口，利用 Git 对已提交源码进行受控回退；逐项检查 `.mathprove-v9-overlay-backups` 恢复被覆盖旧文件。不要用不加区分的 clean/reset 删除用户研究数据。
-
-部署层回退使用 `.mathprove-install-backups` 和已审查的宿主配置。卸载本包 handler 时只移除 `statusMessage` 为 `MathProve v9: ...` 且命令指向相应 `mathprove_hook.py` 的条目，保留第三方 hooks。恢复后重新审查 `/hooks`。本 RC 没有自动卸载或旧数据库逆向迁移功能。
-
-
-## 7. 非 Pi 的 CoMath-backed 模式
-
-在已审阅、已构建的 CoMath 检出上，运行 `python scripts/comath_codex_config.py --comath-root /absolute/comath-pi-lab`。它默认生成只读配置；显式 `--access operator` 才包含操作工具。源码指纹不匹配或编译入口缺失会报错，不会猜测兼容性。把 TOML 手工合并到现有项目配置，凭据只通过环境供应；不要写入报告或 Git。
-
-不需要把 Portable-local 的数据库/hooks/角色也安装到同一 campaign。模式路由与真实验收见 `skill/references/v9/comath-backed.md`。配置生成成功不代表服务连通，更不等于 proof-kernel 已验收。
-
-## 8. 单独审阅 CoMath 解析器补丁
-
-在 CoMath 审阅分支中先确认源文件对应已审版本，再运行：
-
-```sh
-git apply --check /path/to/MathProve-Skill-v9/review/patches/comath-statement-signature.patch
-git apply /path/to/MathProve-Skill-v9/review/patches/comath-statement-signature.patch
-corepack pnpm --filter @comath/comathd typecheck
-corepack pnpm --filter @comath/comathd build
-node /path/to/MathProve-Skill-v9/review/comath-signature-regression.cjs services/comathd/dist/proof-kernel/lean/statement-signature.js
-```
-
-后两项完整包命令未在本交付环境运行；这里是操作者验收流程，不是成功日志。公开 package 的 `test` 命令只输出私有 QA 未随快照发布的说明，不能用其退出码替代行为回归。还应运行你持有的完整 QA。补丁只修复指定文本解析边界，未替代 Lean 结构化目标检查。
+已有 CoMath 服务时使用它当前提供的工具，不为同一项目另建数据库。`comath_codex_config.py` 检查当前编译入口是否存在，不要求源码匹配历史 Git blob。角色补充和服务接入见 `COMATH-PROMPTS.md`、`skill/references/v9/comath-backed.md`。技能不修改外部服务本身的权限或配置。

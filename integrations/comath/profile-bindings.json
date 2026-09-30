@@ -6,7 +6,9 @@
       "role": "coordinator",
       "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
       "source_path": "services/comathd/src/agents/agent-profiles.ts",
-      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "source_git_blob": null,
+      "historical_reference_only": true,
+      "source_pinned": false,
       "observed_legacy_specialist_tools": [
         "campaign.next_actions",
         "workstream.spawn"
@@ -22,7 +24,9 @@
       "role": "librarian",
       "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
       "source_path": "services/comathd/src/agents/agent-profiles.ts",
-      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "source_git_blob": null,
+      "historical_reference_only": true,
+      "source_pinned": false,
       "observed_legacy_specialist_tools": [
         "literature.search",
         "citation.condition_check"
@@ -38,7 +42,9 @@
       "role": "computation",
       "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
       "source_path": "services/comathd/src/agents/agent-profiles.ts",
-      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "source_git_blob": null,
+      "historical_reference_only": true,
+      "source_pinned": false,
       "observed_legacy_specialist_tools": [
         "runner.sympy_exact",
         "runner.counterexample_search"
@@ -54,7 +60,9 @@
       "role": "proof_route",
       "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
       "source_path": "services/comathd/src/agents/agent-profiles.ts",
-      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "source_git_blob": null,
+      "historical_reference_only": true,
+      "source_pinned": false,
       "observed_legacy_specialist_tools": [
         "lean.skeleton.write",
         "proof_memory.read"
@@ -70,7 +78,9 @@
       "role": "formalization",
       "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
       "source_path": "services/comathd/src/agents/agent-profiles.ts",
-      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "source_git_blob": null,
+      "historical_reference_only": true,
+      "source_pinned": false,
       "observed_legacy_specialist_tools": [
         "lean.file.write.scoped",
         "lean.check.scoped"
@@ -86,7 +96,9 @@
       "role": "reviewer",
       "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
       "source_path": "services/comathd/src/agents/agent-profiles.ts",
-      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "source_git_blob": null,
+      "historical_reference_only": true,
+      "source_pinned": false,
       "observed_legacy_specialist_tools": [
         "review.read_artifacts",
         "review.write_audit"
@@ -102,7 +114,9 @@
       "role": "graph_builder",
       "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
       "source_path": "services/comathd/src/agents/agent-profiles.ts",
-      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "source_git_blob": null,
+      "historical_reference_only": true,
+      "source_pinned": false,
       "observed_legacy_specialist_tools": [
         "graph_patch.propose"
       ],
@@ -117,7 +131,9 @@
       "role": "security_auditor",
       "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
       "source_path": "services/comathd/src/agents/agent-profiles.ts",
-      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "source_git_blob": null,
+      "historical_reference_only": true,
+      "source_pinned": false,
       "observed_legacy_specialist_tools": [
         "security.scan_paths",
         "security.review_logs"
@@ -133,7 +149,9 @@
       "role": "math_integrity_auditor",
       "source_commit": "e8e0182823b383cb228802c4d70f3309bf0a698c",
       "source_path": "services/comathd/src/agents/agent-profiles.ts",
-      "source_git_blob": "8dab66d0f0186168d4344e3d07b4a1460cd9acb6",
+      "source_git_blob": null,
+      "historical_reference_only": true,
+      "source_pinned": false,
       "observed_legacy_specialist_tools": [
         "math_integrity.check",
         "lean.audit.read"

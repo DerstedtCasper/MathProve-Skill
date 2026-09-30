@@ -15,7 +15,8 @@
     },
     "spec_hash": {
       "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
+      "description": "Legacy key for the current statement revision ID, not a cryptographic hash.",
+      "minLength": 1
     },
     "outcome": {
       "enum": [

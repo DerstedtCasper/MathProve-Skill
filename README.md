@@ -1,87 +1,63 @@
-# MathProve-Skill v9.0.0-rc2
+# MathProve-Skill 9.1 — 数学研究工作台
 
-**非 Pi 环境的可恢复数学研究协议：共享工作区、任务依赖、证据门禁、Codex hooks 与角色模板。** Python 3.11+；便携控制器仅依赖标准库。它不自行调用模型、管理 API key 或认证数学新颖性。
+面向持续数学研究、定理证明、文献复用、反例搜索、符号计算和可选 Lean 形式化。工作重点是推进数学问题、保留可恢复的研究进度，而不是进行代码供应链审计。
 
-本版本基于对固定源码版本的重点审阅：CoMath `e8e0182823b383cb228802c4d70f3309bf0a698c`；MathProve `e4aaf6abec8c05bc5186d635b06b56152442380b`。GitHub 插件读取成功，四个用于复现的原始文件已核对 Git blob SHA；**不是两个仓库的完整 clone，也不是整仓审计或完整上游回归**。本包是保留旧文件的增量覆盖包，没有修改远端。证据范围见 `docs/v9/SOURCE-COVERAGE.json`。
+## 本次调整
 
-## 选择一种运行方式
+- Lean／mathlib 使用最新互相兼容的环境，不冻结特定版本或依赖提交。
+- 不验收源码、依赖、二进制、日志、研究笔记或事件链的哈希。
+- 直接在已有 Lake 项目编译，复用 `.lake` 缓存，支持本地路径依赖和正常元编程。
+- 取消反复构建授权、哈希变动审批和强制人工快照签核；数学审阅作为普通研究记录。
+- 保留真正的数学验证：精确目标类型、实际编译结果、公理依赖、假设核对与未解决反例。
 
-| 方式 | 使用对象 | 状态与授权由谁维护 |
-|---|---|---|
-| Portable-local | 不用 Pi，也不部署 CoMath 服务 | 本包 SQLite/WAL、任务租约和本地审阅记录；合作式单用户协议 |
-| CoMath-backed | 不用 Pi，但愿意运行现有 `comathd` | **原 CoMath 服务**；Codex 通过仓库现有 operator MCP 操作，不另建影子数据库 |
+旧版本报告保留为历史资料，不再作为当前研究流程的版本锁定或审批要求。数据库中的 `spec_hash` 等旧字段名仅为兼容现有工作区保留：当前目标使用修订编号，证据使用对象编号，不计算或核验内容哈希。
 
-第二种方式更适合追求与 CoMath 同一运行标准，但本次只核对了接口与配置生成，没有完成真实 daemon/Codex 验收。两种模式不能把成功标签或人工审批互相转换。详见 `docs/v9/PARITY.md`。
+## 使用方式
 
-## RC2 相比 RC1 的实质更新
+- **直接研究**：加载 `skill/SKILL.md`，读取问题、假设与已有证明，选择下一步有价值的数学行动。简单任务不要求创建数据库或走完所有阶段。
+- **Portable-local**：使用 Python 3.11+ 标准库控制器保存引理任务、研究证据与检查点。
+- **CoMath-backed**：已有 CoMath 服务时使用它当前提供的工具，不为同一个研究项目另建影子数据库。入口说明见 `skill/references/v9/comath-backed.md`。
 
-修复旧 `proof_factory_v8.py` 的混合阶段候选、重复 ID、非法阈值、非有限评分、依赖环/悬空依赖、字符串假值终止问题。这个旧模块仍是研究评分工具，**不因修补而变成证明验证器**；旧 context-lake 多写索引竞争未就地重构，新并发研究应使用 v9 或 CoMath。
+```powershell
+python skill/scripts/mathprove.py --root D:/research/project doctor
+python skill/scripts/mathprove.py --root D:/research/project init
+python skill/scripts/mathprove.py --root D:/research/project start paper1 --spec spec.json
+python skill/scripts/mathprove.py --root D:/research/project status paper1 --check
+```
 
-CoMath 提示词不再把便携角色名称硬套进其注册表。新增九个与实际 profile ID 对应的补充模板，并标明 Pi 与 durable-worker 的不同接入点。新增 `comath_codex_config.py`：校验已审源码后生成现有 operator MCP 的 TOML，默认只开放读取工具，不读取密钥、不启动服务、不改全局信任。覆盖器新增上游文件指纹和相关 Git 未提交改动检查。
+研究对象由 `statement`、`assumptions`、`symbols` 描述。形式化任务另需 `lean.project`、`lean.module`、`lean.declaration`、`lean.expected_type`。修改数学目标使用 `revise`；正常改进笔记和代码不因文件字节变化被阻断。
 
-Codex hooks 保留九类原生事件；只在本实现确实返回上下文的启动事件配置 `additionalContextLimit`。不在 hook 内编译、调用模型或自动安装依赖，也不因为问题未解决而无限阻止退出。**152 项测试：150 通过，2 跳过；真实 Lean 和原生 Windows 未运行。** 另有 4 项所选旧测试及 13 个 CoMath 独立签名解析回归；不等于完整上游回归。
+操作示例见 `skill/references/v9/operations.md`。`spec → plan → candidate → refutation → verify → release` 是可选的持续项目组织工具，不是数学真理或新颖性认证流程。
 
-## 先在空目录演示便携模式
+## Lean 与 mathlib
 
-```sh
+保持最新不等于强行组合互不兼容的版本：使用当前 mathlib 要求的 Lean 工具链。准备或更新项目时使用正常 Lake 流程；研究过程中复用已有依赖与缓存。Lake 自动生成的 `lean-toolchain`／`lake-manifest.json` 是正常构建元数据，不是 MathProve 的冻结或审批门禁。
+
+```powershell
+# 在形式化项目中准备或更新当前依赖，然后验证所研究的目标。
+lake update
+lake build
+python skill/scripts/mathprove.py --root D:/research/project verify paper1 --timeout 1800
+```
+
+验证器在实际项目中执行构建，用指定声明生成精确 `expected_type` 检查并读取公理依赖。`sorry`、错误目标或额外未说明公理不会被当作完成证明。`--allow-build` 仅保留为旧调用的兼容参数，不再是必需授权步骤。未安装 Lean 时继续数学研究，并将形式验证标记为待完成。
+
+## 安装与协作
+
+```powershell
+python scripts/install_v9.py --project D:/research/project --dry-run
+python scripts/install_v9.py --project D:/research/project --upgrade
+```
+
+安装入口、角色模板和 hooks 可按需要使用；不必为普通研究同时启动所有角色。已有文件更新保留备份，不提交工作区、私有凭据或租约文件。Snow 安装见 `docs/v9/SNOW-HOOKS.md`。
+
+`apply_v9_overlay.py` 接受文件路径列表或旧清单，比较实际内容决定是否复制，不校验旧清单哈希或旧源码提交。`comath_codex_config.py` 根据当前构建入口生成配置，不要求源文件匹配历史 Git blob。
+
+## 验证
+
+```powershell
 python -m unittest discover -s tests_v9 -p 'test_*.py' -v
-mkdir demo-project
-python scripts/demo_v9.py --root demo-project
-python skill/scripts/mathprove.py --root demo-project status demo --human --check
+python scripts/demo_v9.py --root D:/research/demo-project
 ```
 
-演示是非形式化流程测试，不是模型能力评测；不调用 Lean、不伪造独立审阅、不自动执行人工签核。默认 2 个并发租约、每任务 3 次尝试、每轮 32 次尝试，可显式调整；**这些不是 token 或费用上限**。六道累计门禁为 `spec → plan → candidate → refutation → verify → release`。
-
-## 安装到 Codex 研究项目（Portable-local）
-
-Snow CLI 与 Snow App 的 Hook 格式不同；Snow 部署与验收见 `docs/v9/SNOW-HOOKS.md`。
-
-```sh
-python scripts/install_v9.py --project /absolute/research/project --dry-run
-python scripts/install_v9.py --project /absolute/research/project
-```
-
-安装至 `.agents/skills/mathprove-skill/`、`.codex/hooks.json`、`.codex/agents/mp_*.toml`。目标目录须存在。已有不同受管理内容时，先查看 dry-run，再使用 `--upgrade` 进行带备份更新。操作者仍需在宿主中审阅项目及 `/hooks` 的信任；更改 hooks 后重新审阅。移动目录或 Python 后重装。`--no-hooks` / `--no-agents` 是本次跳过，不是卸载旧配置。
-
-便携角色是 coordinator、formalizer、strategist、librarian、prover、experimenter、refuter、integrator、auditor；九种职责并非同时启动九个模型。无真实子代理能力时必须记录为顺序检查。
-
-```sh
-python skill/scripts/mathprove.py --root /absolute/research/project init
-python skill/scripts/mathprove.py --root /absolute/research/project doctor
-python skill/scripts/mathprove.py --root /absolute/research/project start paper1 --spec spec.json
-python skill/scripts/mathprove.py --root /absolute/research/project status paper1 --human --check
-```
-
-`spec.json` 在研究根目录内；示例见 `examples/v9/`。命令详见 `skill/references/v9/operations.md`。只有在操作者审查 Lake/依赖构建行为后，才显式执行 `verify paper1 --allow-build`。真实 Lean 验收尚未运行；新回放目录不是沙箱，也不保证全部传递依赖从源码重建。
-
-## 不用 Pi，但复用原 CoMath 服务（CoMath-backed）
-
-在你已审阅并构建好的 CoMath 检出上生成配置：
-
-```sh
-python scripts/comath_codex_config.py --comath-root /absolute/path/to/comath-pi-lab
-# 需要明确授权的任务操作时，再选择 --access operator。
-```
-
-手工合并输出到研究项目的 `.codex/config.toml`，不要用 shell 重定向覆盖已有配置。通过环境提供 `COMATH_OPERATOR_BASE_URL` 和 `COMATH_OPERATOR_TOKEN`，不要把凭据提交到仓库。服务的 operator token 不得换成 host/worker 凭据。配置器检查源文件指纹及已构建入口存在，**不认证构建产物与源码一致性**；操作者需构建所审版本。
-
-本模式不执行本地 `init/start/review` 来镜像同一 campaign；不把 `mp_*` 的便携任务 JSON 当作 CoMath worker 协议。使用已有 `research_capabilities_get` 先发现实际能力。见 `skill/references/v9/comath-backed.md`。
-
-## 合并到你的 MathProve-Skill 仓库
-
-在本地审阅分支中，用包内覆盖器预览和应用，而不是删除旧仓库：
-
-```sh
-python scripts/apply_v9_overlay.py --target /path/to/MathProve-Skill --dry-run
-python scripts/apply_v9_overlay.py --target /path/to/MathProve-Skill --apply
-```
-
-目标须包含已审的原 v8 核心文件，或本包相同修补版本。上游文件指纹不符、计划覆盖的 Git 路径有未提交改动时，脚本拒绝写入；没有 Git 时报告无法做 Git 状态检查。字节级检查也可能拒绝 CRLF 转换后的副本，此时人工合并 `review/patches/mathprove-v8-validation.patch`，不要绕过检查覆盖自己的改动。覆盖不是三方合并，旧数据库不迁移，旧启动器不自动切换。
-
-`review/patches/comath-statement-signature.patch` 是单独供 CoMath 审阅的候选补丁，**不由本安装器应用**。合并及回退见 `docs/v9/MIGRATION.zh-CN.md`。
-
-## 审阅与交接
-
-`docs/v9/AUDIT.zh-CN.md` 给出源码发现及优先级；`TEST-REPORT.md` 给出实测与未覆盖项；`COMATH-PROMPTS.md` 说明角色真实接入路径；`HANDOFF.md` 记录后续验收。旧 RC1 报告仅作为历史记录保存在 `docs/v9/archive/rc1/`。
-
-不要提交 `.mathprove/`、私有租约文件、研究工作区或备份。先把 `gitignore.v9.snippet` 合并进现有规则，再按路径选择提交，避免 `git add .`。保留原许可证；独立新增内容见 `LICENSE.v9`，修改的旧模块和 CoMath 补丁来源见 `review/UPSTREAM-NOTICES.md`。
+协议回归与模拟编译测试不等于真实 Lean 内核验收。本轮本机没有 Lean／Lake，真实证明编译未运行；测试结果和具体变更见 `CHANGELOG.v9.md`。保留原许可证及既有历史工作。

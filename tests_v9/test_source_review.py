@@ -1,5 +1,6 @@
-"""Regression tests for source-audit changes. No Lean or live Codex is simulated."""
+"""Research and integration regressions; no source-version acceptance or live Lean."""
 import importlib.util
+import io
 import json
 from pathlib import Path
 import sys
@@ -8,7 +9,7 @@ import tomllib
 import unittest
 from unittest.mock import patch
 from helpers import WorkspaceCase
-from runtime_v9.comath_adapter import (PROFILES, READ_TOOLS, OPERATOR_TOOLS, COMATH_COMMIT,
+from runtime_v9.comath_adapter import (PROFILES, READ_TOOLS, OPERATOR_TOOLS,
                                         operator_config, profile_binding, render_profile)
 from runtime_v9.install import hook_group
 from runtime_v9.hooks import EVENTS
@@ -62,7 +63,16 @@ class AdapterRegressionTests(unittest.TestCase):
         self.assertEqual(profile_binding('proof-route')['role'],'proof_route')
     def test_profiles_have_no_authority_or_live_claim(self):
         for profile in PROFILES:
-            b=profile_binding(profile);self.assertEqual(b['source_commit'],COMATH_COMMIT);self.assertEqual(b['proof_authority'],'none');self.assertFalse(b['may_mutate_trusted_state']);self.assertFalse(b['installed'])
+            b=profile_binding(profile);self.assertFalse(b['source_pinned']);self.assertTrue(b['historical_reference_only']);self.assertEqual(b['proof_authority'],'none');self.assertFalse(b['may_mutate_trusted_state']);self.assertFalse(b['installed'])
+    def test_profiles_rely_on_current_service_not_source_pins(self):
+        text=render_profile('formalization','Exact assumptions and Lean compilation.')
+        self.assertIn('not a version requirement',text)
+        self.assertIn('current service',text)
+        self.assertIn('Exact assumptions and Lean compilation.',text)
+    def test_legacy_git_blob_interface_does_not_read_or_hash_files(self):
+        from runtime_v9.comath_adapter import git_blob
+        with patch.object(Path,'read_bytes',side_effect=AssertionError('no source hashing')):
+            self.assertIsNone(git_blob(Path('absent-source.ts')))
     def test_generated_profiles_match_sources(self):
         method=(BASE/'skill/assets/v9/research-method.md').read_text(encoding="utf-8")
         for profile in PROFILES:self.assertEqual((BASE/f'integrations/comath/profiles/{profile}.md').read_text(encoding="utf-8"),render_profile(profile,method))
@@ -89,55 +99,94 @@ class AdapterRegressionTests(unittest.TestCase):
                 h=hook_group(root,root/'skill',event)['hooks'][0]
                 self.assertEqual('additionalContextLimit' in h,event in ('SessionStart','SubagentStart'))
 
+class CoMathConfigTests(unittest.TestCase):
+    def setUp(self):
+        spec=importlib.util.spec_from_file_location('comath_config',BASE/'scripts/comath_codex_config.py')
+        self.config=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.config)
+    def invoke(self,root):
+        stdout=io.StringIO();stderr=io.StringIO()
+        with patch.object(sys,'argv',['comath_codex_config.py','--comath-root',str(root)]),patch('sys.stdout',stdout),patch('sys.stderr',stderr):
+            code=self.config.main()
+        return code,stdout.getvalue(),stderr.getvalue()
+    def test_current_source_with_existing_entry_is_accepted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);entry=root/'services/comathd/dist/control/research-mcp-facade.js'
+            entry.parent.mkdir(parents=True);entry.write_text('current facade')
+            src=root/'services/comathd/src/control/research-mcp-facade.ts'
+            src.parent.mkdir(parents=True);src.write_text('updated source, not a fixed blob')
+            code,text,error=self.invoke(root)
+            self.assertEqual(code,0,error)
+            self.assertEqual(tomllib.loads(text)['mcp_servers']['comath_operator']['args'],[str(entry.resolve())])
+    def test_built_entry_does_not_require_source_checkout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);entry=root/'services/comathd/dist/control/research-mcp-facade.js'
+            entry.parent.mkdir(parents=True);entry.write_text('current facade')
+            code,text,error=self.invoke(root)
+            self.assertEqual(code,0,error);self.assertIn('current service',text)
+    def test_missing_entry_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            code,text,error=self.invoke(Path(tmp))
+            self.assertEqual(code,2);self.assertEqual(text,'');self.assertIn('entry',error)
+
 class OverlayPreconditionTests(unittest.TestCase):
     def fixture(self,root):
         spec=importlib.util.spec_from_file_location('audit_overlay',BASE/'scripts/apply_v9_overlay.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
         src=root/'src';dst=root/'dst';src.mkdir();dst.mkdir()
         (src/'legacy.py').write_text('new');(dst/'legacy.py').write_text('old')
-        from runtime_v9.comath_adapter import git_blob
-        manifest={'schema':'mathprove.overlay.v9','files':{'legacy.py':m.file_hash(src/'legacy.py')},'upstream_file_preconditions':{'legacy.py':[git_blob(dst/'legacy.py')]}}
+        manifest={'schema':'mathprove.overlay.v9','files':{'legacy.py':'obsolete file hash'},'upstream_file_preconditions':{'legacy.py':['obsolete upstream blob']}}
         (src/'RELEASE-MANIFEST.json').write_text(json.dumps(manifest));return m,src,dst
-    def test_source_divergence_rejected_before_write(self):
+    def test_legacy_preconditions_do_not_block_changed_source(self):
         with tempfile.TemporaryDirectory() as tmp:
             m,src,dst=self.fixture(Path(tmp));(dst/'legacy.py').write_text('user changes')
-            with self.assertRaises(m.ProtocolError):m.apply_overlay(src,dst,apply=True)
-            self.assertEqual((dst/'legacy.py').read_text(),'user changes');self.assertFalse((dst/'RELEASE-MANIFEST.json').exists())
-    def test_pinned_source_and_idempotent_reapply_allowed(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            m,src,dst=self.fixture(Path(tmp));m.apply_overlay(src,dst,apply=True);m.apply_overlay(src,dst,apply=True)
+            with patch.object(m.shutil,'which',return_value=None):result=m.apply_overlay(src,dst,apply=True)
             self.assertEqual((dst/'legacy.py').read_text(),'new')
-    def test_missing_pinned_source_rejected(self):
+            self.assertEqual((Path(result['backup'])/'legacy.py').read_text(),'user changes')
+    def test_byte_identical_reapply_has_no_writes_or_backup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m,src,dst=self.fixture(Path(tmp))
+            with patch.object(m.shutil,'which',return_value=None):
+                m.apply_overlay(src,dst,apply=True);result=m.apply_overlay(src,dst,apply=True)
+            self.assertEqual(result['files'],[]);self.assertIsNone(result['backup'])
+            self.assertEqual((dst/'legacy.py').read_text(),'new')
+    def test_missing_legacy_destination_can_be_created(self):
         with tempfile.TemporaryDirectory() as tmp:
             m,src,dst=self.fixture(Path(tmp));(dst/'legacy.py').unlink()
-            with self.assertRaises(m.ProtocolError):m.apply_overlay(src,dst,apply=True)
+            with patch.object(m.shutil,'which',return_value=None):m.apply_overlay(src,dst,apply=True)
+            self.assertEqual((dst/'legacy.py').read_text(),'new')
 
 class GitPreservationTests(unittest.TestCase):
-    def setup_repo(self,root):
-        import subprocess
-        m,src,dst=OverlayPreconditionTests().fixture(root)
-        # Remove per-file pin here: this group isolates general dirty-worktree protection.
-        p=src/'RELEASE-MANIFEST.json';data=json.loads(p.read_text());data.pop('upstream_file_preconditions');p.write_text(json.dumps(data))
-        def git(*args):
-            return subprocess.run(['git','-C',str(dst),*args],capture_output=True,text=True,check=True)
-        git('init','-q');git('add','legacy.py');git('-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','fixture')
-        return m,src,dst,git
+    def apply_with_status(self,m,src,dst,status,*,returncode=0):
+        from subprocess import CompletedProcess
+        # Exercise protection logic without invoking Git or changing a repository.
+        def result(args,**kwargs):
+            if 'rev-parse' in args:return CompletedProcess(args,0,str(dst),'')
+            return CompletedProcess(args,returncode,status,'')
+        with patch.object(m.shutil,'which',return_value='git'),patch.object(m.subprocess,'run',side_effect=result):
+            return m.apply_overlay(src,dst,apply=True)
     def test_unstaged_target_edit_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
-            m,src,dst,git=self.setup_repo(Path(tmp));(dst/'legacy.py').write_text('local edit')
-            with self.assertRaises(m.ProtocolError):m.apply_overlay(src,dst,apply=True)
+            m,src,dst=OverlayPreconditionTests().fixture(Path(tmp));(dst/'legacy.py').write_text('local edit')
+            with self.assertRaises(m.ProtocolError):self.apply_with_status(m,src,dst,' M legacy.py\n')
             self.assertEqual((dst/'legacy.py').read_text(),'local edit')
     def test_staged_target_edit_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
-            m,src,dst,git=self.setup_repo(Path(tmp));(dst/'legacy.py').write_text('local edit');git('add','legacy.py')
-            with self.assertRaises(m.ProtocolError):m.apply_overlay(src,dst,apply=True)
+            m,src,dst=OverlayPreconditionTests().fixture(Path(tmp));(dst/'legacy.py').write_text('local edit')
+            with self.assertRaises(m.ProtocolError):self.apply_with_status(m,src,dst,'M  legacy.py\n')
+            self.assertEqual((dst/'legacy.py').read_text(),'local edit')
     def test_unrelated_changes_preserved(self):
         with tempfile.TemporaryDirectory() as tmp:
-            m,src,dst,git=self.setup_repo(Path(tmp));(dst/'notes.txt').write_text('private notes')
-            result=m.apply_overlay(src,dst,apply=True)
+            m,src,dst=OverlayPreconditionTests().fixture(Path(tmp));(dst/'notes.txt').write_text('private notes')
+            result=self.apply_with_status(m,src,dst,'')
             self.assertEqual(result['git_dirty_check'],'planned_destinations_clean');self.assertEqual((dst/'notes.txt').read_text(),'private notes')
+            self.assertEqual((dst/'legacy.py').read_text(),'new')
     def test_untracked_target_conflict_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
-            m,src,dst,git=self.setup_repo(Path(tmp));(src/'new.py').write_text('overlay');(dst/'new.py').write_text('user draft')
-            p=src/'RELEASE-MANIFEST.json';data=json.loads(p.read_text());data['files']['new.py']=m.file_hash(src/'new.py');p.write_text(json.dumps(data))
-            with self.assertRaises(m.ProtocolError):m.apply_overlay(src,dst,apply=True)
+            m,src,dst=OverlayPreconditionTests().fixture(Path(tmp));(src/'new.py').write_text('overlay');(dst/'new.py').write_text('user draft')
+            p=src/'RELEASE-MANIFEST.json';data=json.loads(p.read_text());data['files']['new.py']='obsolete hash';p.write_text(json.dumps(data))
+            with self.assertRaises(m.ProtocolError):self.apply_with_status(m,src,dst,'?? new.py\n')
             self.assertEqual((dst/'new.py').read_text(),'user draft')
+    def test_failed_git_inspection_preserves_destination(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m,src,dst=OverlayPreconditionTests().fixture(Path(tmp))
+            with self.assertRaisesRegex(m.ProtocolError,'Could not inspect'):self.apply_with_status(m,src,dst,'',returncode=1)
+            self.assertEqual((dst/'legacy.py').read_text(),'old')

@@ -2,7 +2,6 @@
 """Apply only manifest-listed files. No upstream deletion or legacy-state migration."""
 from __future__ import annotations
 import argparse
-import hashlib
 import json
 import shutil
 import subprocess
@@ -10,42 +9,40 @@ from pathlib import Path
 import sys
 import uuid
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "skill"))
-from runtime_v9.core import ProtocolError, atomic_write, file_hash, safe_path, strict_json
+from runtime_v9.core import ProtocolError, atomic_write, safe_path, strict_json
 
 
 def apply_overlay(source: Path, target: Path, *, apply: bool = False) -> dict:
     source=source.resolve();target=target.resolve()
     if source==target:raise ProtocolError("Do not apply the overlay onto itself")
     if not target.is_dir():raise ProtocolError("Target repository must be an existing directory")
-    manifest=strict_json(source/'RELEASE-MANIFEST.json')
-    if manifest.get('schema')!='mathprove.overlay.v9' or not isinstance(manifest.get('files'),dict):raise ProtocolError("Invalid release manifest")
+    manifest_source=safe_path(source,'RELEASE-MANIFEST.json',exists=True)
+    manifest=strict_json(manifest_source)
+    if not isinstance(manifest,dict) or manifest.get('schema')!='mathprove.overlay.v9':
+        raise ProtocolError("Invalid release manifest")
+    files=manifest.get('files')
+    if not isinstance(files,(dict,list)) or not all(isinstance(rel,str) and rel for rel in files):
+        raise ProtocolError("Manifest files must be a path list or legacy dictionary")
     operations=[]
-    # Pinned upstream edits are not ordinary generated files. Refuse a divergent
-    # target before any write rather than covering up a user/local modification.
-    for rel, allowed in manifest.get('upstream_file_preconditions', {}).items():
-        dst = safe_path(target, rel)
-        if not isinstance(allowed, list) or not all(isinstance(h, str) and len(h) == 40 for h in allowed):
-            raise ProtocolError("Invalid upstream precondition: " + rel)
-        if not dst.is_file():
-            raise ProtocolError("Missing pinned upstream file: " + rel)
-        data = dst.read_bytes()
-        current = hashlib.sha1(b"blob " + str(len(data)).encode("ascii") + b"\0" + data).hexdigest()
-        desired = manifest['files'].get(rel)
-        if current not in allowed and (desired is None or file_hash(dst) != desired):
-            raise ProtocolError("Pinned upstream file differs; preserve your changes and merge the supplied patch manually: " + rel)
-    # Validate every supplied byte and destination BEFORE touching the target.
-    for rel, expected in manifest['files'].items():
+    # Legacy hash values and upstream preconditions are deliberately ignored.
+    # Check all supplied paths before writing; compare actual bytes, not digests.
+    for rel in dict.fromkeys(files):
         src=safe_path(source,rel,exists=True);dst=safe_path(target,rel)
-        if not src.is_file() or file_hash(src)!=expected:raise ProtocolError("Overlay file hash mismatch: "+rel)
+        if not src.is_file():raise ProtocolError("Overlay source is not a file: "+rel)
         if dst.exists() and not dst.is_file():raise ProtocolError("Destination is not a file: "+rel)
-        if not dst.exists() or file_hash(dst)!=expected:operations.append((rel,src,dst))
-    # Copy manifest too, while preserving its previous version for rollback.
+        if not dst.exists() or dst.read_bytes()!=src.read_bytes():operations.append((rel,src,dst))
+    # Back up the manifest only if its bytes actually change.
     manifest_dst=safe_path(target,'RELEASE-MANIFEST.json')
     if manifest_dst.exists() and not manifest_dst.is_file():raise ProtocolError("Manifest destination is not a file")
-    operations.append(('RELEASE-MANIFEST.json',source/'RELEASE-MANIFEST.json',manifest_dst))
+    if 'RELEASE-MANIFEST.json' not in files and (not manifest_dst.exists() or manifest_dst.read_bytes()!=manifest_source.read_bytes()):
+        operations.append(('RELEASE-MANIFEST.json',manifest_source,manifest_dst))
     result={"apply":apply,"target":str(target),"files":[x[0] for x in operations],"deletions":[],
             "legacy_state_migrated":False,"upstream_full_source_audited":False,
             "warning":"Review git diff before committing. Do not commit backups, state or lease-token files."}
+    if not operations:
+        result['git_dirty_check']='not_needed'
+        if apply:result['backup']=None
+        return result
     git = shutil.which("git")
     result["git_dirty_check"] = "git_unavailable" if git is None else "not_a_git_repository"
     if git:

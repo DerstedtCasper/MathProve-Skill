@@ -35,7 +35,7 @@ python -m unittest discover -s tests_v9 -p 'test_*.py' -v
 
 Pi 子代理模板与持久化研究 worker 不是同一条 prompt 加载路径。已读 durable 路径是 `daemon-runtime → contextService.buildPrompt → Codex app-server adapter`；`buildPrompt` 不直接读 `.pi/agents/*.md`，而是组合经服务校验的 context pack。因此只修改 Pi 文件不能保证后台 worker 获得新方法。
 
-建议的最小接入是：操作者审阅补充模板；为其生成版本化、内容哈希绑定的 `tool_instructions` artifact；通过实际 host context policy 选择并授权；由现有 context-pack builder 计入预算与来源。模板若包含原证明/失败线索，不能标记为 blind-safe。记录模板版本，后续复现才能区分模型变化与提示词变化。
+建议的最小接入是：通过服务当前的上下文配置加载相应 `tool_instructions`，保留实际职责、可见范围和研究预算，不新增源码锁定、内容哈希验收或重复审批。模板若包含原证明或失败线索，不能标记为 blind-safe。使用普通修订编号区分提示词调整。
 
 `role_template`、tool policy、write scope 仍由原服务约束。Pi 的 `child_agent_report`、durable 的 checkpoint/research_result 与 formal_candidate 使用各自 schema，不能复制 portable outcome 字段代替。对普通突破结果仍遵循“非终止候选 + 另行最终结果”；formal_candidate 按其专属回执结束。
 
@@ -43,4 +43,4 @@ Pi 子代理模板与持久化研究 worker 不是同一条 prompt 加载路径�
 
 ## 提示词验收
 
-用一个短 formalization 任务检查实际 prompt 含正确补充哈希、锁定命题及 allowed tools；让 blind reviewer 验证看不到原证明和失败材料；验证报告符合其真实 schema。对新旧模板在相同问题、模型、预算下做配对对照，记录首个有效结果耗时、接口漂移次数、错误接受和人工修补量。更多角色不作为成功指标。
+用一个短 formalization 任务检查实际 prompt 含正确的研究方法、目标陈述及 allowed tools；让 blind reviewer 验证看不到原证明和失败材料；验证报告符合其真实 schema。对新旧模板在相同问题、模型、预算下做配对对照，记录首个有效结果耗时、接口漂移次数、错误接受和人工修补量。更多角色不作为成功指标。

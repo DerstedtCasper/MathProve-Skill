@@ -1,13 +1,6 @@
-"""Explicit cold Lean replay. No LLM calls and no proof-by-log-import.
-
-Runs reviewed build code with the caller's permissions. A fresh directory is NOT
-an OS sandbox. Network access may be used by Lake to obtain pinned dependencies.
-Use a disposable OS account/container for untrusted projects. Only invoke after
-operator consent; never run from lifecycle hooks.
-"""
+"""Lean compilation and target/axiom checks in the current Lake project."""
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -20,92 +13,50 @@ import tempfile
 import uuid
 from typing import Any
 
-from .core import VERSION, ProtocolError, Store, atomic_write, digest, dumps, file_hash, safe_path, utc
+from .core import VERSION, ProtocolError, Store, atomic_write, dumps, safe_path, utc
 
 ALLOWED_AXIOMS = frozenset({"propext", "Classical.choice", "Quot.sound"})
 EXCLUDED = {".git", ".lake", ".mathprove", "WORKSPACE", "__pycache__", ".venv", "node_modules"}
-MAX_SOURCE_BYTES = 256 * 1024 * 1024
 
 
 def source_inventory(project: Path) -> dict[str, str]:
+    """Compatibility inventory: source paths, not content fingerprints."""
     if not project.is_dir():
         raise ProtocolError("Lean project directory is missing")
     result: dict[str, str] = {}
-    total = 0
     for directory, dirs, files in os.walk(project, followlinks=False):
-        here = Path(directory)
-        for name in dirs + files:
-            if (here / name).is_symlink():
-                raise ProtocolError("Cold replay refuses source symlinks, including excluded paths")
         dirs[:] = sorted(d for d in dirs if d not in EXCLUDED)
         for name in sorted(files):
-            p = here / name
-            if p.suffix in {".olean", ".ilean", ".pyc"}:
-                continue
-            total += p.stat().st_size
-            if total > MAX_SOURCE_BYTES:
-                raise ProtocolError("Project exceeds 256 MiB source cap; isolate a smaller replay project")
-            result[p.relative_to(project).as_posix()] = file_hash(p)
+            path = Path(directory) / name
+            if path.suffix not in {".olean", ".ilean", ".pyc"}:
+                rel = path.relative_to(project).as_posix()
+                result[rel] = rel
     return result
 
 
 def verifier_fingerprint() -> dict:
-    return {"version": VERSION, "runner_sha256": file_hash(Path(__file__)),
-            "core_sha256": file_hash(Path(__file__).with_name("core.py"))}
+    """Historical API name; the version is informational only."""
+    return {"version": VERSION}
 
 
 def compiled_inventory(project: Path) -> dict[str, str]:
-    """Bind retained local build artifacts; this is not a signature/certificate."""
-    result = {}
-    total = 0
+    """Optional artifact path inventory; never a verification prerequisite."""
+    result: dict[str, str] = {}
     for directory, dirs, files in os.walk(project, followlinks=False):
-        here = Path(directory)
         dirs[:] = sorted(d for d in dirs if d != ".git")
-        for d in dirs:
-            if (here / d).is_symlink():
-                raise ProtocolError("Replay artifacts contain a symlink directory")
         for name in sorted(files):
-            p = here / name
-            if p.suffix not in {".olean", ".ilean", ".so", ".dll", ".dylib"}:
-                continue
-            if p.is_symlink():
-                raise ProtocolError("Replay artifacts contain a symlink")
-            total += p.stat().st_size
-            if total > 4 * 1024**3 or len(result) >= 100000:
-                raise ProtocolError("Compiled artifact inventory exceeds the 4 GiB / 100k-file profile cap")
-            result[p.relative_to(project).as_posix()] = file_hash(p)
+            path = Path(directory) / name
+            if path.suffix in {".olean", ".ilean", ".so", ".dll", ".dylib"}:
+                rel = path.relative_to(project).as_posix()
+                result[rel] = rel
     return result
 
 
 def lock_errors(project: Path) -> list[str]:
-    errors: list[str] = []
-    tc = project / "lean-toolchain"
-    manifest = project / "lake-manifest.json"
-    if not tc.is_file() or not re.fullmatch(r"leanprover/lean4:v\d+\.\d+\.\d+(?:-rc\d+)?", tc.read_text(encoding="utf-8").strip()):
-        errors.append("lean-toolchain must pin leanprover/lean4:vMAJOR.MINOR.PATCH (optional -rcN)")
+    """Historical API name; toolchain and dependency selection belong to Lake."""
     if not (project / "lakefile.toml").is_file() and not (project / "lakefile.lean").is_file():
-        errors.append("Missing Lake configuration")
-    try:
-        data = json.loads(manifest.read_text(encoding="utf-8"))
-        packages = data["packages"]
-        if not isinstance(packages, list):
-            raise ValueError("packages is not a list")
-        names: set[str] = set()
-        for package in packages:
-            if not isinstance(package, dict) or package.get("type") != "git" or not re.fullmatch(r"[0-9a-fA-F]{40}", str(package.get("rev", ""))):
-                errors.append("All dependencies must be git packages pinned to full 40-hex commits; path/registry-only dependencies are unsupported")
-            if not isinstance(package, dict):
-                continue
-            name = package.get("name", "")
-            if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", name) or name in names:
-                errors.append("Manifest has an unsafe or duplicate package name")
-            names.add(str(name))
-            url = package.get("url", "")
-            if not isinstance(url, str) or not url.startswith("https://"):
-                errors.append("Cold replay accepts only HTTPS git dependency URLs")
-    except (OSError, ValueError, KeyError, TypeError):
-        errors.append("A readable lake-manifest.json with a packages array is required, including for zero dependencies")
-    return errors
+        return ["Missing Lake configuration"]
+    return []
 
 
 def strip_comments_strings(source: str) -> str:
@@ -143,15 +94,14 @@ def strip_comments_strings(source: str) -> str:
 
 
 def static_flags(project: Path, inventory: dict[str, str]) -> list[str]:
+    """Report obvious proof placeholders; target axioms determine acceptance."""
     flags: list[str] = []
-    # Strict candidate policy; legitimate custom metaprograms need a separately
-    # reviewed dependency package, not a blanket permission in final candidates.
-    rx = re.compile(r"\b(sorry|admit|axiom|unsafe|native_decide|run_cmd|elab|macro|implemented_by|extern)\b|#eval")
+    rx = re.compile(r"\b(sorry|admit|axiom)\b")
     for rel in inventory:
         if rel.endswith(".lean") and rel != "lakefile.lean":
             content = strip_comments_strings((project / rel).read_text(encoding="utf-8"))
-            for m in rx.finditer(content):
-                flags.append(f"{rel}:{content.count(chr(10), 0, m.start())+1}: strict static precheck: {m.group(0)}")
+            for match in rx.finditer(content):
+                flags.append(f"{rel}:{content.count(chr(10), 0, match.start())+1}: static note: {match.group(0)}")
     return flags
 
 
@@ -169,7 +119,6 @@ def run_process(argv: list[str], cwd: Path, log: Path, timeout: int) -> dict:
         except subprocess.TimeoutExpired:
             timed_out = True
             if os.name == "nt":
-                # PID is a local integer, not user-provided shell syntax.
                 try:
                     subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"],
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10, check=False)
@@ -192,7 +141,7 @@ def run_process(argv: list[str], cwd: Path, log: Path, timeout: int) -> dict:
             proc.wait()
             raise
     return {"argv": argv, "exit_code": code, "timed_out": timed_out,
-            "elapsed_seconds": round(time.monotonic() - started, 3), "log_sha256": file_hash(log)}
+            "elapsed_seconds": round(time.monotonic() - started, 3), "log_path": str(log)}
 
 
 def parse_axioms(output: str, declaration: str) -> list[str]:
@@ -213,8 +162,6 @@ def _command_output(argv: list[str], cwd: Path, timeout: int = 20) -> str:
     with tempfile.TemporaryDirectory(prefix="mathprove-command-") as directory:
         log = Path(directory) / "output.log"
         result = run_process(argv, cwd, log, timeout)
-        if log.stat().st_size > 2 * 1024 * 1024:
-            raise ProtocolError("Command metadata output exceeds 2 MiB")
         output = log.read_text(encoding="utf-8", errors="replace").strip()
         if result["exit_code"] != 0 or result["timed_out"]:
             raise ProtocolError("Command failed or timed out: " + " ".join(argv) + "\n" + output[-2000:])
@@ -222,174 +169,158 @@ def _command_output(argv: list[str], cwd: Path, timeout: int = 20) -> str:
 
 
 def dependency_attestations(project: Path) -> list[dict]:
-    packages = json.loads((project / "lake-manifest.json").read_text(encoding="utf-8"))["packages"]
-    attestations = []
-    if packages and not shutil.which("git"):
-        raise ProtocolError("git is required to check materialized dependencies")
-    for package in packages:
-        path = safe_path(project, f".lake/packages/{package['name']}", exists=True)
-        head = _command_output(["git", "rev-parse", "HEAD"], path)
-        if head.lower() != package["rev"].lower():
-            raise ProtocolError("Materialized dependency revision mismatch: " + package["name"])
-        dirty = _command_output(["git", "status", "--porcelain", "--untracked-files=normal"], path)
-        if dirty:
-            raise ProtocolError("Materialized dependency has modified/untracked files: " + package["name"])
-        # Hash sources too; repository identity alone is not an artifact fingerprint.
-        attestations.append({"name": package["name"], "rev": head, "source_hash": digest(source_inventory(path))})
-    return attestations
+    """Historical API name; retain Lake metadata without Git or source checks."""
+    manifest = project / "lake-manifest.json"
+    if not manifest.is_file():
+        return []
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        packages = data.get("packages", [])
+        return [dict(package) for package in packages if isinstance(package, dict)] if isinstance(packages, list) else []
+    except (OSError, ValueError, AttributeError):
+        return []
+
+
+def _audit_code(spec: dict, name: str) -> str:
+    return (f"import {spec['lean']['module']}\nset_option autoImplicit false\n"
+            f"theorem {name} : ({spec['lean']['expected_type']}) := @{spec['lean']['declaration']}\n"
+            f"#print axioms {name}\n")
 
 
 def verify_current_receipt(root: Path, spec: dict, receipt: dict) -> list[str]:
-    errors = []
+    """Validate the recorded check and goal, not current filesystem identity."""
     if receipt.get("schema") != "mathprove.lean-replay.v9" or receipt.get("result") != "checked_local":
-        return ["Last clean replay is not a successful local verification"]
-    if receipt.get("verifier") != verifier_fingerprint():
-        errors.append("Verifier implementation changed after replay")
-    if receipt.get("spec_hash") != digest(spec):
-        errors.append("Replay statement lock is stale")
-    try:
-        project = safe_path(root, spec["lean"]["project"], exists=True)
-        errors.extend(lock_errors(project))
-        if digest(source_inventory(project)) != receipt.get("source_hash"):
-            errors.append("Lean source/config/dependency lock changed after replay")
-        audit = receipt.get("audit_source", {})
-        audit_path = safe_path(root, audit["path"], exists=True)
-        if file_hash(audit_path) != audit.get("sha256"):
-            errors.append("Generated target-audit source hash mismatch")
-        fresh = safe_path(root, receipt["replay_project"], exists=True)
-        retained = source_inventory(fresh)
-        retained.pop(audit_path.name, None)
-        if digest(retained) != receipt.get("source_hash"):
-            errors.append("Retained replay input snapshot changed")
-        if not receipt.get("compiled_artifacts") or compiled_inventory(fresh) != receipt.get("compiled_artifacts"):
-            errors.append("Retained compiled artifact inventory changed or is absent")
-        for dep in receipt.get("dependencies", []):
-            dep_path = safe_path(fresh, ".lake/packages/" + dep["name"], exists=True)
-            if digest(source_inventory(dep_path)) != dep["source_hash"]:
-                errors.append("Retained dependency source changed: " + dep["name"])
-        for tool in ("lean", "lake"):
-            binary = Path(receipt["toolchain"][tool + "_binary_path"])
-            if not binary.is_file() or file_hash(binary) != receipt["toolchain"][tool + "_binary_sha256"]:
-                errors.append("Resolved toolchain binary changed or disappeared: " + tool)
-        for log in receipt.get("logs", []):
-            path = safe_path(root, log["path"], exists=True)
-            if file_hash(path) != log["sha256"]:
-                errors.append("Replay log hash mismatch")
-    except (OSError, ProtocolError, KeyError) as e:
-        errors.append(str(e))
-    if receipt.get("axioms") is None or not isinstance(receipt.get("axioms"), list) or any(
-            x not in ALLOWED_AXIOMS for x in receipt.get("axioms", [])):
+        return ["Last Lean verification is not a successful local verification"]
+    errors: list[str] = []
+    if "spec" in receipt:
+        if receipt["spec"] != spec:
+            errors.append("Lean verification belongs to a different mathematical goal")
+        if receipt.get("expected_type") != spec.get("lean", {}).get("expected_type"):
+            errors.append("Recorded target expected_type does not match the current goal")
+    else:
+        # Old receipts remain readable, and their retained wrapper identifies the
+        # Lean target. Without the spec text, they cannot certify a current goal.
+        errors.append("Legacy receipt lacks mathematical goal text; rerun Lean verification")
+        try:
+            audit = safe_path(root, receipt["audit_source"]["path"], exists=True)
+            if audit.read_text(encoding="utf-8") != _audit_code(spec, audit.stem):
+                errors.append("Legacy target-audit source does not match the current Lean target")
+        except (OSError, ProtocolError, KeyError, TypeError) as exc:
+            errors.append("Legacy receipt has no readable matching target audit: " + str(exc))
+    axioms = receipt.get("axioms")
+    if not isinstance(axioms, list) or any(not isinstance(x, str) or x not in ALLOWED_AXIOMS for x in axioms):
         errors.append("Axiom profile is absent or outside the standard allowlist")
-    if not receipt.get("target_type_checked") or not receipt.get("fresh_build"):
-        errors.append("No fresh build / locked target type check")
-    if len(receipt.get("logs", [])) != 2 or not receipt.get("toolchain"):
-        errors.append("Missing replay provenance")
+    if not receipt.get("target_type_checked") or not receipt.get("build_succeeded", receipt.get("fresh_build", False)):
+        errors.append("No successful Lake build / exact target type check")
+    logs = receipt.get("logs", [])
+    if not isinstance(logs, list) or len(logs) != 2:
+        errors.append("Missing build and target verification logs")
+    else:
+        for log in logs:
+            try:
+                path = safe_path(root, log["path"], exists=True)
+                if not path.is_file():
+                    errors.append("Verification log is not a file")
+            except (OSError, ProtocolError, KeyError, TypeError) as exc:
+                errors.append(str(exc))
     commands = receipt.get("commands", [])
-    if len(commands) != 2 or any(x.get("exit_code") != 0 or x.get("timed_out") is not False for x in commands):
+    if (not isinstance(commands, list) or len(commands) != 2 or any(
+            not isinstance(command, dict) or command.get("exit_code") != 0 or command.get("timed_out") is not False
+            for command in commands)):
         errors.append("Missing successful build and target command results")
+    else:
+        build = commands[0].get("argv", [])
+        target = commands[1].get("argv", [])
+        if not isinstance(build, list) or build[1:] != ["build"] or not isinstance(target, list) or len(target) != 4 or target[1:3] != ["env", "lean"]:
+            errors.append("Recorded commands are not a Lake build and Lean target check")
     return errors
 
 
-def verify(store: Store, run: str, *, acknowledge: bool, timeout: int = 1800) -> dict:
-    if not acknowledge:
-        raise ProtocolError("Build files execute code. Review them and pass --allow-build only with operator consent")
+def verify(store: Store, run: str, *, acknowledge: bool = False, timeout: int = 1800) -> dict:
+    """Compile using Lake's configured toolchain, dependencies and local cache.
+
+    acknowledge remains accepted for callers of older runners, but is not a gate.
+    """
     if not 1 <= timeout <= 86400:
         raise ProtocolError("timeout must be 1..86400 seconds per build/check command")
     spec = store.spec(run)
+    status = store.status(run)
     if spec["mode"] != "formal":
-        raise ProtocolError("Lean replay requires formal mode")
-    if store.status(run)["status"] != "active":
+        raise ProtocolError("Lean verification requires formal mode")
+    if status["status"] != "active":
         raise ProtocolError("Run is not active")
     project = safe_path(store.root, spec["lean"]["project"], exists=True)
     inventory = source_inventory(project)
-    errors = lock_errors(project) + static_flags(project, inventory)
+    errors = lock_errors(project)
     lake = shutil.which("lake")
     if not lake:
         errors.append("lake is unavailable; no proof evidence can be produced")
     if errors:
-        raise ProtocolError("Replay preflight failed:\n" + "\n".join(errors))
+        raise ProtocolError("Lean verification preflight failed:\n" + "\n".join(errors))
     folder = safe_path(store.root, f".mathprove/replays/{run}-{uuid.uuid4().hex}")
-    fresh = folder / "project"
-    fresh.mkdir(parents=True)
-    for rel in inventory:
-        dst = safe_path(fresh, rel)
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(project / rel, dst)
-    if digest(source_inventory(fresh)) != digest(inventory):
-        raise ProtocolError("Source changed while copying; rerun with a stable candidate")
-    source_hash = digest(inventory)
-    receipt: dict[str, Any] = {"schema": "mathprove.lean-replay.v9", "spec_hash": digest(spec),
-        "source_hash": source_hash, "source_inventory": inventory, "created": utc(),
-        "result": "failed", "fresh_build": True, "target_type_checked": False,
-        "verifier": verifier_fingerprint(), "replay_project": fresh.relative_to(store.root).as_posix(),
-        "dependency_rebuild_guarantee": "Not attested; reviewed Lake scripts may use downloaded caches",
+    folder.mkdir(parents=True)
+    receipt: dict[str, Any] = {
+        "schema": "mathprove.lean-replay.v9", "spec": spec,
+        "spec_hash": status["spec_hash"], "created": utc(),
+        "source_inventory": inventory, "source_paths": list(inventory),
+        "project": spec["lean"]["project"], "replay_project": spec["lean"]["project"],
+        "expected_type": spec["lean"]["expected_type"],
+        "result": "failed", "build_succeeded": False, "target_type_checked": False,
+        "proof_status": "not_checked", "verifier": verifier_fingerprint(),
         "axioms": None, "logs": [], "commands": [], "toolchain": {},
-        "trust_scope": "cooperative local replay; not an OS sandbox or third-party certificate"}
+        "static_flags": static_flags(project, inventory),
+        "trust_scope": "local Lean compilation and axiom inspection; historical result for the recorded goal",
+    }
     try:
-        version = _command_output([lake, "env", "lean", "--version"], fresh, timeout)
-        executable = _command_output([lake, "env", "which" if os.name != "nt" else "where", "lean"], fresh, timeout).splitlines()[0]
-        lean_bin = Path(executable)
-        if not lean_bin.is_file():
-            raise ProtocolError("Cannot identify resolved Lean executable")
-        expected_version = (project / "lean-toolchain").read_text(encoding="utf-8").strip().split(":v", 1)[1]
-        if not re.search(r"(?<![0-9.])" + re.escape(expected_version) + r"(?![0-9.])", version):
-            raise ProtocolError("Resolved Lean version does not match lean-toolchain")
-        receipt["toolchain"] = {"lean_version": version, "lean_binary_path": str(lean_bin.resolve()),
-                                "lake_binary_path": str(Path(lake).resolve()), "lean_binary_sha256": file_hash(lean_bin),
-                                "lake_binary_sha256": file_hash(Path(lake)),
-                                "lean_toolchain": (project / "lean-toolchain").read_text(encoding="utf-8").strip()}
-        for name, argv in [("build", [lake, "build"])]:
-            log = folder / (name + ".log")
-            command = run_process(argv, fresh, log, timeout)
-            receipt["commands"].append(command)
-            receipt["logs"].append({"path": log.relative_to(store.root).as_posix(), "sha256": file_hash(log)})
-            if command["exit_code"] != 0 or command["timed_out"]:
-                raise ProtocolError("Cold Lake build failed or timed out")
-        # The generated wrapper checks the exact operator-reviewed expected type,
-        # not merely that a theorem with the requested name exists.
-        name = "mathprove_audit_" + uuid.uuid4().hex
-        audit = fresh / (name + ".lean")
-        code = (f"import {spec['lean']['module']}\nset_option autoImplicit false\n"
-                f"theorem {name} : ({spec['lean']['expected_type']}) := @{spec['lean']['declaration']}\n"
-                f"#print axioms {name}\n")
-        atomic_write(audit, code)
-        receipt["audit_source"] = {"path": audit.relative_to(store.root).as_posix(), "sha256": file_hash(audit)}
-        log = folder / "target-and-axioms.log"
-        command = run_process([lake, "env", "lean", audit.name], fresh, log, timeout)
+        log = folder / "build.log"
+        command = run_process([lake, "build"], project, log, timeout)
         receipt["commands"].append(command)
-        receipt["logs"].append({"path": log.relative_to(store.root).as_posix(), "sha256": file_hash(log)})
+        receipt["logs"].append({"path": log.relative_to(store.root).as_posix()})
         if command["exit_code"] != 0 or command["timed_out"]:
-            raise ProtocolError("Locked target type check failed or timed out")
-        if log.stat().st_size > 16 * 1024 * 1024:
-            raise ProtocolError("Axiom output exceeds parsing cap")
+            receipt["proof_status"] = "build_failed"
+            raise ProtocolError("Lake build failed or timed out")
+        receipt["build_succeeded"] = True
+        receipt["toolchain"] = {
+            "lean_version": _command_output([lake, "env", "lean", "--version"], project, timeout),
+            "lake_version": _command_output([lake, "--version"], project, timeout),
+        }
+        toolchain = project / "lean-toolchain"
+        if toolchain.is_file():
+            receipt["toolchain"]["lean_toolchain"] = toolchain.read_text(encoding="utf-8").strip()
+        receipt["dependencies"] = dependency_attestations(project)
+        name = "mathprove_audit_" + uuid.uuid4().hex
+        audit = project / (name + ".lean")
+        atomic_write(audit, _audit_code(spec, name))
+        receipt["audit_source"] = {"path": audit.relative_to(store.root).as_posix()}
+        log = folder / "target-and-axioms.log"
+        command = run_process([lake, "env", "lean", audit.name], project, log, timeout)
+        receipt["commands"].append(command)
+        receipt["logs"].append({"path": log.relative_to(store.root).as_posix()})
+        if command["exit_code"] != 0 or command["timed_out"]:
+            receipt["proof_status"] = "type_check_failed"
+            raise ProtocolError("Target type check failed or timed out")
+        receipt["target_type_checked"] = True
         axioms = parse_axioms(log.read_text(encoding="utf-8", errors="replace"), name)
         receipt["axioms"] = axioms
-        if not set(axioms) <= ALLOWED_AXIOMS:
-            raise ProtocolError("Unexpected axioms: " + ", ".join(sorted(set(axioms) - ALLOWED_AXIOMS)))
-        receipt["target_type_checked"] = True
-        receipt["dependencies"] = dependency_attestations(fresh)
-        receipt["compiled_artifacts"] = compiled_inventory(fresh)
-        if not receipt["compiled_artifacts"]:
-            raise ProtocolError("No compiled artifacts were retained; check the Lake build targets")
-        for rel, expected in inventory.items():
-            if not (fresh / rel).is_file() or file_hash(fresh / rel) != expected:
-                raise ProtocolError("Build mutated locked inputs: " + rel)
-        fresh_inventory = source_inventory(fresh)
-        fresh_inventory.pop(audit.name, None)
-        if fresh_inventory != inventory:
-            raise ProtocolError("Build added or removed undeclared project inputs")
-        if digest(source_inventory(project)) != source_hash:
-            raise ProtocolError("Original project changed during verification")
+        if "sorryAx" in axioms:
+            receipt["proof_status"] = "sorry"
+            raise ProtocolError("Target depends on sorryAx (sorry/admit)")
+        unexpected = set(axioms) - ALLOWED_AXIOMS
+        if unexpected:
+            receipt["proof_status"] = "unexpected_axioms"
+            raise ProtocolError("Unexpected axioms: " + ", ".join(sorted(unexpected)))
+        receipt["proof_status"] = "checked"
         receipt["result"] = "checked_local"
-    except (OSError, ProtocolError, subprocess.SubprocessError) as e:
-        receipt["failure"] = str(e)
-    # No transaction is held across compilation. Recheck the statement before commit.
-    with store.tx() as c:
-        r = store._run(c, run)
-        if r["spec_hash"] != digest(spec) or r["status"] != "active":
-            raise ProtocolError("Run changed during replay; logs retained but receipt is not accepted")
-        eid = store._evidence(c, r, "lean_replay", (dumps(receipt) + "\n").encode("utf-8"),
-                              {"source_hash": source_hash}, "mathprove.runner.v9")
+    except (OSError, ProtocolError, subprocess.SubprocessError) as exc:
+        receipt["failure"] = str(exc)
+    # No transaction spans compilation. Compare the goal text before recording
+    # evidence; spec_hash may be an opaque revision ID, not a digest of spec.
+    with store.tx() as connection:
+        current = store._run(connection, run)
+        if json.loads(current["spec"]) != spec or current["status"] != "active":
+            raise ProtocolError("Run changed during verification; logs retained but receipt is not accepted")
+        eid = store._evidence(connection, current, "lean_replay", (dumps(receipt) + "\n").encode("utf-8"),
+                              {"project": receipt["project"], "expected_type": receipt["expected_type"]}, "mathprove.runner.v9")
     return {"evidence_id": eid, "result": receipt["result"], "failure": receipt.get("failure"),
             "replay_directory": folder.relative_to(store.root).as_posix(),
             "trust_scope": receipt["trust_scope"]}

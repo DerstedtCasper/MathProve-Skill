@@ -12,4 +12,4 @@ D21 review: compare the current specification with the original problem. Freeze 
 
 D30 handoff: export current results, failed routes, limitations, source attributions and remaining obligations. Unresolved work may end honestly. Publishing, spending more budget or claiming novelty requires a fresh human decision.
 
-Suggested fields per review: current spec hash; new validated obligations; unresolved counterexamples; literature gaps; attempts/provider cost; exact next task; stop trigger; reviewer; decision evidence.
+Suggested fields per review: current goal revision; new validated obligations; unresolved counterexamples; literature gaps; attempts/provider cost; exact next task; stop trigger; reviewer; decision evidence.

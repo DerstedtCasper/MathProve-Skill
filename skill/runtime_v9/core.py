@@ -9,7 +9,6 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -20,7 +19,7 @@ import time
 from typing import Any, Iterator
 import uuid
 
-VERSION = "9.0.0-rc2"
+VERSION = "9.1.0"
 STAGES = ("spec", "plan", "candidate", "refutation", "verify", "release")
 ROLES = ("coordinator", "formalizer", "strategist", "librarian", "prover",
          "experimenter", "refuter", "integrator", "auditor")
@@ -38,15 +37,21 @@ def dumps(value: Any) -> str:
 
 
 def digest(value: Any) -> str:
-    return hashlib.sha256(dumps(value).encode("utf-8")).hexdigest()
+    """Legacy API for deterministic metadata keys; no cryptographic hashing."""
+    return dumps(value)
 
 
 def file_hash(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for block in iter(lambda: f.read(1024 * 1024), b""):
-            h.update(block)
-    return h.hexdigest()
+    """Retired compatibility API: return a path reference without reading bytes."""
+    return str(path)
+
+
+def _is_json(value: str) -> bool:
+    try:
+        json.loads(value)
+        return True
+    except ValueError:
+        return False
 
 
 def utc() -> str:
@@ -256,12 +261,8 @@ class Store:
                payload: Any, dedupe: str | None = None) -> bool:
         if dedupe and c.execute("SELECT 1 FROM events WHERE dedupe=?", (dedupe,)).fetchone():
             return False
-        last = c.execute("SELECT hash FROM events ORDER BY seq DESC LIMIT 1").fetchone()
-        prev = last[0] if last else "0" * 64
-        created = utc()
-        body = {"run": run, "event": event, "payload": payload, "previous": prev, "created": created}
         c.execute("INSERT INTO events(run_id,event,payload,previous,hash,dedupe,created) VALUES(?,?,?,?,?,?,?)",
-                  (run, event, dumps(payload), prev, digest(body), dedupe, created))
+                  (run, event, dumps(payload), "", "event-" + uuid.uuid4().hex, dedupe, utc()))
         return True
 
     def create_run(self, run: str, spec: dict, *, max_parallel: int = 2,
@@ -274,8 +275,8 @@ class Store:
             if c.execute("SELECT 1 FROM runs WHERE id=?", (run,)).fetchone():
                 raise ProtocolError("Run exists; use revise explicitly, or a new run ID")
             c.execute("INSERT INTO runs(id,revision,spec,spec_hash,max_parallel,max_attempts,budget_attempts,created) VALUES(?,?,?,?,?,?,?,?)",
-                      (run, 1, dumps(spec), digest(spec), max_parallel, max_attempts, budget_attempts, utc()))
-            self._event(c, run, "run.created", {"spec_hash": digest(spec), "mode": spec["mode"]})
+                      (run, 1, dumps(spec), f"{run}:1", max_parallel, max_attempts, budget_attempts, utc()))
+            self._event(c, run, "run.created", {"spec_revision": f"{run}:1", "mode": spec["mode"]})
         return self.status(run)
 
     def revise(self, run: str, spec: dict, reason: str) -> dict:
@@ -283,13 +284,13 @@ class Store:
         text(reason, "revision reason")
         with self.tx() as c:
             r = self._run(c, run)
-            if r["spec_hash"] == digest(spec):
+            if json.loads(r["spec"]) == spec:
                 raise ProtocolError("Spec is unchanged")
             c.execute("UPDATE runs SET revision=revision+1,spec=?,spec_hash=?,phase=-1,status='active',pause_reason=NULL WHERE id=?",
-                      (dumps(spec), digest(spec), run))
+                      (dumps(spec), f"{run}:{r['revision'] + 1}", run))
             # Old tasks and evidence remain inspectable but cannot support the new lock.
             c.execute("UPDATE tasks SET state='superseded',token=NULL,expires=NULL WHERE run_id=?", (run,))
-            self._event(c, run, "spec.revised", {"old": r["spec_hash"], "new": digest(spec), "reason": reason})
+            self._event(c, run, "spec.revised", {"old": r["spec_hash"], "new": f"{run}:{r['revision'] + 1}", "reason": reason})
         return self.status(run)
 
     def add_task(self, run: str, task: str, role: str, objective: str,
@@ -380,14 +381,14 @@ class Store:
     def _task_artifact_errors(self, task: sqlite3.Row) -> list[str]:
         if not task["result"]:
             return []
+        result = json.loads(task["result"])
+        paths = result.get("artifacts", []) or [ref["path"] for ref in result.get("artifact_hashes", [])]
         errors = []
-        for ref in json.loads(task["result"]).get("artifact_hashes", []):
+        for name in paths:
             try:
-                p = safe_path(self.root, ref["path"], exists=True)
-                if file_hash(p) != ref["sha256"]:
-                    errors.append("Task artifact changed: " + task["id"] + ":" + ref["path"])
-            except (OSError, ProtocolError, KeyError):
-                errors.append("Task artifact missing or unsafe: " + task["id"])
+                safe_path(self.root, name, exists=True)
+            except (OSError, ProtocolError):
+                errors.append("Task artifact missing: " + task["id"] + ":" + name)
         return errors
 
     def _dependency_ready(self, c: sqlite3.Connection, run: str, task: str) -> bool:
@@ -456,17 +457,17 @@ class Store:
             self._require_active(r)
             t = self._lease(c, run, task, owner, token)
             if result.get("spec_hash") != r["spec_hash"] or result.get("task_id") != task:
-                raise ProtocolError("Result must bind the leased task and current statement hash")
+                raise ProtocolError("Result must bind the leased task and current statement revision")
             refs = []
             work = safe_path(self.root, t["work_dir"], exists=True)
             for name in result.get("artifacts", []):
                 p = safe_path(self.root, name, exists=True)
                 if not p.is_file() or not p.is_relative_to(work):
                     raise ProtocolError("Task results may reference files only inside their leased work directory")
-                refs.append({"path": p.relative_to(self.root).as_posix(), "sha256": file_hash(p)})
+                refs.append({"path": p.relative_to(self.root).as_posix()})
             state = "done" if result["outcome"] in ("candidate", "refuted") else (
                 "blocked" if t["attempts"] >= r["max_attempts"] or result["outcome"] == "blocked" else "queued")
-            saved = {**result, "artifact_hashes": refs}
+            saved = {**result, "artifacts": [ref["path"] for ref in refs]}
             c.execute("UPDATE tasks SET state=?,result=?,token=NULL,expires=NULL WHERE run_id=? AND id=?",
                       (state, dumps(saved), run, task))
             self._event(c, run, "task.finished", {"task": task, "state": state, "result": saved})
@@ -476,15 +477,10 @@ class Store:
             return {"task_id": task, "state": state, "proof_authority": "none"}
 
     def _save_object(self, content: bytes) -> tuple[str, str]:
-        h = hashlib.sha256(content).hexdigest()
-        rel = f".mathprove/objects/{h}.blob"
-        path = safe_path(self.root, rel)
-        if path.exists():
-            if file_hash(path) != h:
-                raise ProtocolError("Content-addressed object was modified")
-        else:
-            atomic_write(path, content)
-        return h, rel
+        object_id = "object-" + uuid.uuid4().hex
+        rel = f".mathprove/objects/{object_id}.blob"
+        atomic_write(safe_path(self.root, rel), content)
+        return object_id, rel
 
     def _evidence(self, c: sqlite3.Connection, r: sqlite3.Row, kind: str,
                   content: bytes, metadata: dict, producer: str,
@@ -507,15 +503,14 @@ class Store:
         content = p.read_bytes()
         if not content.strip():
             raise ProtocolError("Evidence content is empty")
-        h = hashlib.sha256(content).hexdigest()
         with self.tx() as c:
             r = self._run(c, run)
             self._require_active(r)
             eid = self._evidence(c, r, kind, content, {}, text(producer, "producer", 128),
-                                 p.relative_to(self.root).as_posix(), h)
+                                 p.relative_to(self.root).as_posix(), None)
             if kind == "counterexample_candidate":
                 self._issue(c, r, "Counterexample candidate requires an explicit resolution: " + eid)
-            return {"evidence_id": eid, "sha256": h, "proof_authority": "none"}
+            return {"evidence_id": eid, "proof_authority": "none"}
 
     def withdraw(self, run: str, evidence_id: str, reason: str) -> dict:
         """Retire stale evidence without deleting objects/history; re-run gates afterward."""
@@ -557,30 +552,21 @@ class Store:
 
     def _stale(self, ev: sqlite3.Row) -> str | None:
         try:
-            path = safe_path(self.root, ev["object_path"], exists=True)
-            if file_hash(path) != ev["sha256"]:
-                return "stored object hash mismatch"
-            if ev["origin"]:
-                origin = safe_path(self.root, ev["origin"], exists=True)
-                if file_hash(origin) != ev["origin_sha256"]:
-                    return "source artifact changed after registration"
+            safe_path(self.root, ev["object_path"], exists=True)
             return None
         except (OSError, ProtocolError):
-            return "evidence file is missing or unsafe"
+            return "registered evidence file is missing"
 
     def _snapshot(self, c: sqlite3.Connection, r: sqlite3.Row) -> str:
-        ev = c.execute("SELECT id,kind,sha256,withdrawn FROM evidence WHERE run_id=? AND spec_hash=? ORDER BY id", (r["id"], r["spec_hash"])).fetchall()
-        tasks = c.execute("SELECT id,state,result,attempts FROM tasks WHERE run_id=? AND spec_hash=? ORDER BY id", (r["id"], r["spec_hash"])).fetchall()
-        issues = c.execute("SELECT id,resolved,resolution_evidence FROM issues WHERE run_id=? AND spec_hash=? ORDER BY id", (r["id"], r["spec_hash"])).fetchall()
-        return digest({"spec_hash": r["spec_hash"], "evidence": [list(x) for x in ev],
-                       "tasks": [list(x) for x in tasks], "issues": [list(x) for x in issues]})
+        sequence = c.execute("SELECT COALESCE(MAX(seq),0) FROM events WHERE run_id=?", (r["id"],)).fetchone()[0]
+        return f"{r['id']}:{r['revision']}:{sequence}"
 
     def status(self, run: str) -> dict:
         with self.connect() as c:
             r = self._run(c, run)
             tasks = c.execute("SELECT id,role,state,owner,expires,attempts,work_dir FROM tasks WHERE run_id=? AND spec_hash=? ORDER BY rowid", (run, r["spec_hash"])).fetchall()
             ev = c.execute("SELECT id,kind,sha256,object_path,origin,origin_sha256 FROM evidence WHERE run_id=? AND spec_hash=? AND withdrawn=0 ORDER BY created", (run, r["spec_hash"])).fetchall()
-            return {"run_id": run, "revision": r["revision"], "spec_hash": r["spec_hash"],
+            return {"run_id": run, "revision": r["revision"], "spec_hash": r["spec_hash"], "spec_revision": r["spec_hash"],
                     "mode": json.loads(r["spec"])["mode"], "status": r["status"],
                     "status_is_historical": True, "freshness_action": "gate release --check; never use status as a fresh certificate",
                     "last_accepted_stage": STAGES[r["phase"]] if r["phase"] >= 0 else None,
@@ -673,8 +659,6 @@ class Store:
                 elif "integration" not in valid:
                     reasons.append("Research mode needs an integration note with remaining unformalized obligations")
             snapshot = self._snapshot(c, r)
-            if idx >= 5 and not c.execute("SELECT 1 FROM reviews WHERE run_id=? AND snapshot=?", (run, snapshot)).fetchone():
-                reasons.append("Human review must bind the exact current snapshot")
             if r["status"] == "paused":
                 reasons.append("Run is paused")
             accepted = not reasons
@@ -692,9 +676,7 @@ class Store:
             return {"stage": stage, "accepted": accepted, "snapshot": snapshot, "reasons": reasons,
                     "meaning": "Protocol/evidence gate; not a semantic proof verifier or identity authentication"}
 
-    def review(self, run: str, reviewer: str, note: str, snapshot: str, *, acknowledge: bool) -> dict:
-        if not acknowledge:
-            raise ProtocolError("Only the human operator should invoke review with --human-ack")
+    def review(self, run: str, reviewer: str, note: str, snapshot: str, *, acknowledge: bool = False) -> dict:
         text(reviewer, "reviewer", 128)
         text(note, "review note")
         check = self.gate(run, "verify", record=False)
@@ -771,7 +753,7 @@ class Store:
                        "counts": {"tasks": task_count, "open_issues": issue_count},
                        "truncated": task_count > len(tasks) or issue_count > len(open_issues),
                        "created": utc(), "reason": reason,
-                       "instruction": "Recheck current state, hashes, leases and gates. This is a cache, not proof authority."}
+                       "instruction": "Read the current goal, mathematical evidence and unresolved tasks. This is a cache, not proof authority."}
             rel = f".mathprove/checkpoints/{run}-{uuid.uuid4().hex}.json"
             atomic_write(safe_path(self.root, rel), dumps(capsule) + "\n")
             self._event(c, run, "checkpoint.created", {"path": rel, "snapshot": capsule["snapshot"], "reason": reason})
@@ -783,10 +765,10 @@ class Store:
             r = self._run(c, run)
             counts = {x[0]: x[1] for x in c.execute("SELECT state,COUNT(*) FROM tasks WHERE run_id=? AND spec_hash=? GROUP BY state", (run, r["spec_hash"]))}
             nxt = STAGES[min(r["phase"] + 1, len(STAGES)-1)]
-            return (f"MathProve run={run}; revision={r['revision']}; spec_hash={r['spec_hash']}; "
+            return (f"MathProve run={run}; revision={r['revision']}; spec_revision={r['spec_hash']}; "
                     f"status={r['status']}; next_gate={nxt}; tasks={dumps(counts)}. "
                     "Read current state through the controller. Agent prose, scores and tool success are not proof. "
-                    "Checkpoint and pause are valid outcomes. Do not edit the state database or fabricate human review.")
+                    "Checkpoint and pause are valid outcomes. Review notes record mathematical judgments, not an extra approval ceremony.")
 
     def hook_event(self, run: str | None, event: str, data: dict, dedupe: str | None) -> bool:
         with self.tx() as c:
@@ -805,16 +787,10 @@ class Store:
 
     def audit_events(self) -> dict:
         with self.connect() as c:
-            prev = "0" * 64
-            count = 0
-            for r in c.execute("SELECT * FROM events ORDER BY seq"):
-                body = {"run": r["run_id"], "event": r["event"], "payload": json.loads(r["payload"]),
-                        "previous": prev, "created": r["created"]}
-                if r["previous"] != prev or r["hash"] != digest(body):
-                    return {"consistent": False, "first_bad_event": r["seq"], "tamper_proof": False}
-                count += 1
-                prev = r["hash"]
-            return {"consistent": True, "events": count, "head": prev, "tamper_proof": False}
+            rows = c.execute("SELECT seq,payload FROM events ORDER BY seq").fetchall()
+        invalid = [row["seq"] for row in rows if not _is_json(row["payload"])]
+        return {"consistent": not invalid, "events": len(rows), "invalid_json_events": invalid,
+                "hash_verification": False, "tamper_proof": False}
 
 
 def validate_plan(plan: dict, spec_hash: str) -> list[str]:

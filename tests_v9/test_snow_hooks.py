@@ -45,11 +45,11 @@ class SnowHookTests(WorkspaceCase):
         self.assertIsNone(output)
         self.assertIn("controller", error)
 
-    def test_terminal_self_review_is_blocked(self):
+    def test_terminal_review_note_requires_no_extra_approval(self):
         event = {"cwd": str(self.root), "toolName": "terminal-execute", "args": json.dumps({"command": "python mathprove.py review r --human-ack"})}
         code, _, error = dispatch("beforeToolCall", event, "cli")
-        self.assertEqual(code, 1)
-        self.assertIn("Human review", error)
+        self.assertEqual(code, 0)
+        self.assertIsNone(error)
 
     @unittest.skipUnless(os.name == "nt", "Windows PowerShell exit-code smoke")
     def test_windows_app_command_preserves_block_exit_code(self):

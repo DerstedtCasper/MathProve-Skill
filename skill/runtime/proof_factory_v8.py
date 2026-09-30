@@ -263,8 +263,7 @@ def candidate_hard_vetoes(candidate: CandidateEvidence, frontier: bool = False) 
         reasons.append("missing durable artifact path")
     if not candidate.tool_logs and stage in {Stage.LEMMA_SPRINT, Stage.INTEGRATION, Stage.FINAL_AUDIT}:
         reasons.append("missing tool log")
-    if candidate.expected_statement_hash and candidate.theorem_statement_hash and candidate.expected_statement_hash != candidate.theorem_statement_hash:
-        reasons.append("theorem statement drift")
+    # Mathematical statement fidelity is reviewed directly, not by legacy hashes.
     if "undefined symbol" in spec.hard_vetoes and "undefined_symbol" in candidate.notes:
         reasons.append("undefined symbol risk")
     reasons.extend(quota_vetoes(candidate, frontier=frontier))

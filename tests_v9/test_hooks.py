@@ -20,7 +20,7 @@ class HookTests(WorkspaceCase):
         self.store.add_task("r","t","prover","UNTRUSTED_INSTRUCTION secret context")
         out=handle(self.payload("SessionStart"),"SessionStart",self.root)
         self.assertNotIn("UNTRUSTED_INSTRUCTION",json.dumps(out))
-        self.assertIn("spec_hash",json.dumps(out))
+        self.assertIn("spec_revision",json.dumps(out))
     def test_session_ambiguity_does_not_guess(self):
         self.store.create_run("r2",RESEARCH)
         self.assertIn("unambiguous",json.dumps(handle(self.payload("SessionStart"),"SessionStart",self.root)))
@@ -34,9 +34,9 @@ class HookTests(WorkspaceCase):
     def test_pretool_never_grants_permission(self):
         p=self.payload("PreToolUse",tool_name="Bash",tool_input={"command":"echo hello"})
         self.assertEqual(handle(p,"PreToolUse",self.root),{})
-    def test_pretool_denies_accidental_self_review(self):
+    def test_review_note_needs_no_hook_approval(self):
         p=self.payload("PreToolUse",tool_name="Bash",tool_input={"command":"python mathprove.py review r --human-ack"})
-        self.assertEqual(handle(p,"PreToolUse",self.root)['hookSpecificOutput']['permissionDecision'],'deny')
+        self.assertEqual(handle(p,"PreToolUse",self.root), {})
     def test_tool_success_does_not_advance_gates(self):
         p=self.payload("PostToolUse",tool_name="Bash",tool_input={"command":"lake build"},tool_response={"exit_code":0},tool_use_id="one")
         handle(p,"PostToolUse",self.root)
@@ -63,10 +63,14 @@ class HookTests(WorkspaceCase):
     def test_duplicate_json_keys_rejected(self):
         p=self.invoke('PreToolUse','{"session_id":"a","session_id":"b"}')
         self.assertEqual(json.loads(p.stdout)['hookSpecificOutput']['permissionDecision'],'deny')
-    def test_stop_failure_never_infinite_blocks(self):
+    def test_stop_failure_warns_without_blocking(self):
         # Unknown explicit run reliably exercises the error path, not a mocked hook output.
-        args=[sys.executable,str(SCRIPT),'--root',str(self.root),'--event','Stop','--run','missing']
-        for active in (False,True):
-            p=subprocess.run(args,input=json.dumps(self.payload('Stop',stop_hook_active=active)),text=True,capture_output=True,timeout=10)
-            out=json.loads(p.stdout)
-            self.assertEqual(out.get('decision')=='block',not active)
+        for event in ('Stop', 'SubagentStop'):
+            args=[sys.executable,str(SCRIPT),'--root',str(self.root),'--event',event,'--run','missing']
+            for active in (False,True):
+                with self.subTest(event=event, active=active):
+                    p=subprocess.run(args,input=json.dumps(self.payload(event,stop_hook_active=active)),text=True,capture_output=True,timeout=10)
+                    self.assertEqual(p.returncode,0)
+                    out=json.loads(p.stdout)
+                    self.assertNotEqual(out.get('decision'),'block')
+                    self.assertIn('checkpoint/context unavailable',out.get('systemMessage',''))

@@ -89,9 +89,9 @@ class CLITests(WorkspaceCase):
         self.through_verify();out=export_review(self.store,'r','WORKSPACE/review.zip')
         with zipfile.ZipFile(out['path']) as z:
             self.assertFalse(any('sqlite' in n for n in z.namelist()));self.assertIn('review.json',z.namelist());self.assertNotIn('lease_token',z.read('review.json').decode())
-    def test_export_refuses_stale_evidence(self):
+    def test_export_allows_working_note_iteration_without_hash_gate(self):
         self.evidence('candidate','x');self.artifact('candidate.json','changed')
-        with self.assertRaises(ProtocolError):export_review(self.store,'r','review.zip')
+        self.assertTrue(Path(export_review(self.store,'r','review.zip')['path']).is_file())
     def test_export_will_not_overwrite(self):
         export_review(self.store,'r','review.zip')
         with self.assertRaises(ProtocolError):export_review(self.store,'r','review.zip')

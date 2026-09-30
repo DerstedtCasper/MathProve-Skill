@@ -1,45 +1,46 @@
 ---
 name: mathprove-skill
-description: Evidence-bound mathematical research with persistent workspaces, lemma tasks, bounded multi-agent collaboration, adversarial review and optional Lean 4 verification. Use for sustained research or proof projects; not for routine one-off arithmetic. Requires explicit operator approval for builds, tool installation and human review.
+description: A mathematical research workbench for sustained proof projects, literature reuse, lemma exploration, counterexamples, symbolic computation and optional Lean verification. Keep research notes and unfinished work resumable, use current compatible Lean/mathlib, and distinguish proved results from conjectures and computational evidence.
 ---
 
-# MathProve v9 — portable research protocol
+# MathProve — mathematical research workbench
 
-Select the backend before beginning. For an existing CoMath deployment, read `references/v9/comath-backed.md` and use only its actual operator tools; do not initialize a local shadow database or adopt the portable task JSON. Do not silently change backends on a missing tool.
+Advance the mathematical problem. This skill is a workbench, not a software supply-chain audit or a release-approval system. Use the user's language and notation.
 
-The remaining sections describe **Portable-local** mode. Read `agent.md` for that mode. This is the v9 release-candidate entrypoint, independent of retained legacy state. Use only `scripts/mathprove.py` for v9 state. A selected v8 scoring/graph helper has a compatibility patch, but legacy database migration and full legacy regression are not provided.
+## Begin or resume
 
-## Start and resume
+Read the existing problem, assumptions, notation, proof attempts and relevant artifacts before choosing the next action. Keep hypotheses and the intended conclusion explicit. Correct the statement openly when the mathematics requires it; do not silently prove a weaker theorem.
 
-1. Establish the research root and goal from the current user request. Run `python <skill-root>/scripts/mathprove.py --root <research-root> doctor`. Do not install missing tools automatically.
-2. Initialize once with `init`, then `list`/`status <run> --check`. If multiple runs exist, explicitly select and `bind <run> --session <session-id>`; do not guess. Restore a bounded checkpoint and relevant artifacts, not the full conversation.
-3. For a new run, create a spec JSON **inside the research root** with mode, statement, assumptions, symbols. Formal mode also needs `lean.project`, `lean.module`, `lean.declaration`, and the exact reviewed `lean.expected_type`. Use `start <run> --spec <file>`; it defaults to two parallel leases, three attempts per task and 32 attempts total.
-4. Read `references/v9/operations.md` for exact commands and `references/v9/protocol.md` for evidence requirements. Use `--help` rather than guessing flags. Keep the root before the subcommand.
+For a sustained project, the optional portable controller provides notes, lemma tasks, checkpoints and evidence records. Use `python <skill-root>/scripts/mathprove.py --root <research-root> doctor`, then `init`, `list` or `status`. Read `references/v9/operations.md` only when using those commands. A small self-contained proof does not need a database or all six stages.
 
-## Research cycle
+If an existing CoMath service is already the workbench, read `references/v9/comath-backed.md` and discover its current tools. Do not create a second database for the same project.
 
-Follow `spec → plan → candidate → refutation → verify → release`. A gate is a structural/evidence check, not an LLM verdict. Later gates recheck earlier requirements and current evidence hashes. Statement changes go through `revise`; never edit a lock, database, receipt or old artifact in place.
+## Research method
 
-Create a small lemma DAG. Reuse known results only with checked hypotheses and exact source references. Record missing source coverage rather than claim novelty from absent search results. Compare a proof route with a genuinely different route or adverse-evidence probe before expensive parallel work.
+- Define objects, quantifiers, assumptions and conventions. Separate strict proofs, conditional lemmas, conjectures, physical intuition and finite/numerical evidence.
+- Prefer the next useful mathematical action: a reusable library theorem, a small exact calculation, a boundary case, a counterexample, a compiler experiment or a missing lemma.
+- Maintain a small lemma dependency graph and record failed routes with their actual obstruction. Compare genuinely different approaches when that helps; do not manufacture reviews or parallel roles merely to satisfy a checklist.
+- Reuse sources only after checking their hypotheses. A missing search result is not a novelty claim. Surface gaps rather than hide them behind a score or a successful unrelated calculation.
+- Use only the coordinator and specialist roles needed by the current problem. Shared role guidance is in `assets/v9/roles/`; subagents are optional, and sequential passes are not independent reviews.
 
-Use `task-add`, `claim`, `packet`, `heartbeat`, `finish` for bounded tasks. The coordinator owns lease tokens and shared state. Writable workers stay in their attempt directories; read-only workers return inline drafts. Register artifacts with `evidence-add` separately; a completed task is not proof. Counterexample leads become unresolved issues, not silently dropped objections. Preserve failed approaches with assumptions and reproduction details.
+## Lean and mathlib
 
-Default to one coordinator and only the specialist roles needed for the current bottleneck. Native Codex presets are `mp_formalizer`, `mp_strategist`, `mp_librarian`, `mp_prover`, `mp_experimenter`, `mp_refuter`, `mp_integrator`, `mp_auditor`. The parent may adopt `mp_coordinator` instructions; do not spawn a second coordinator. Shared role sources are in `assets/v9/roles/`. No subagent tool means explicitly sequential role passes, not fictional independent agents.
+Use the latest mutually compatible Lean/mathlib environment. For mathlib projects, follow current mathlib's toolchain requirements rather than independently forcing an incompatible Lean release. Refresh dependencies through normal Lake commands when preparing or updating the project; keep using the installed cache during research.
 
-Use minimal context packets. `packet --blind-statement` with a formalizer/auditor task withholds the informal target and previous opinions for a separate back-translation pass. It is context filtering, not access-control isolation. The host must create a truly separate context for independent review.
+Do not freeze versions, require exact dependency commits, insist on a pre-existing `lake-manifest.json`, hash files or executables, or request approval again merely because the environment or a note changed. Lake may generate its ordinary toolchain/manifest files; those are build metadata, not MathProve acceptance locks. Local path dependencies are valid.
 
-## Verification and stop conditions
+For formal work, `verify <run>` runs `lake build` in the actual project, reuses `.lake`, checks the requested declaration against the exact `expected_type`, and reports its axiom dependencies. Ordinary compilation is part of the requested research task; `--allow-build` remains an optional legacy flag, not a second approval gate. Legitimate macros and metaprogramming are not rejected by blanket lexical rules.
 
-Research mode can produce a `reviewed_research` packet after integration and human review. This is **not a formal proof certificate**. CAS calculations, finite search, empirical tests and reviewed informal proofs remain labeled by their evidence type.
+A successful build containing `sorry`, a custom unsupported axiom, or a theorem with the wrong type is not a proof of the requested claim. If Lean is unavailable, continue the mathematical research and clearly label formal checking as pending. Never call an unperformed check successful.
 
-Formal mode uses explicit `verify <run> --allow-build` only after the human has approved the build code and environment. The runner uses a fresh workspace, a pinned Lean toolchain and dependency manifest, a wrapper checking the exact expected type, and an axiom allowlist. No hook may compile, install dependencies, call an LLM, or promote tool success to proof. Read the runner limitations in `references/v9/protocol.md` before claiming what was checked.
+## Notes and stopping
 
-A failed, missing or stale verification blocks formal release. Human review must bind the current snapshot and be invoked by the operator outside agent execution. Do not invoke `review --human-ack` on the user's behalf. Even the final `reviewed_formal_local` label is a cooperative local record, not authenticated independent certification or a novelty judgment.
+Use ordinary revision identifiers to keep work attached to the right mathematical goal. Existing `spec_hash` field names are compatibility aliases for those identifiers, not content hashes. Edit and improve working notes normally; register a new result or withdraw an obsolete claim when its mathematical meaning changes.
 
-On budget exhaustion, interruption, a blocked dependency, or a request to stop: checkpoint, report the precise unresolved obligation, and pause. Do not force an endless Stop-hook loop, demand a million-token budget, or infer impossibility from an unsuccessful attempt. A continuation must state what new evidence, tool, approach or budget justifies it.
+Review is a mathematical judgment, not a mandatory human-signature ceremony. The optional controller's `spec → plan → candidate → refutation → verify → release` organizes recorded work; its labels do not establish mathematical truth or novelty. Read `references/v9/protocol.md` for the actual checks, not an engineering audit procedure.
+
+Checkpoint useful progress on interruption or a real obstruction, state the remaining obligation and the highest-value next action, and continue when new evidence or resources justify it. Do not impose token-consumption targets, fixed proof routes, repeated approvals, hash-validation detours or an endless prove-until-done loop.
 
 ## Host integration
 
-The native installer merges project-local Codex command hooks and standalone agent TOML presets; the human must review/trust the project and hooks through the host. Changes require re-review. Hooks are convenience guardrails, not comprehensive security. Other hosts can call the same CLI and use the shared prompts manually; their hook schemas are not assumed identical to Codex.
-
-No external service, plugin, model provider or API key is required by this controller. It does not itself launch LLMs or pay for inference. Actual agent tools, model choice, sandbox permissions and billing caps remain host/operator responsibilities.
+Hooks and role presets are optional conveniences for resuming context. The controller does not call models or manage API keys. Host permissions remain unchanged; do not expose private research or credentials when publishing results.

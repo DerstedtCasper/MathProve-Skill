@@ -28,9 +28,9 @@ MP task-cancel paper1 L2 --reason "No longer on the research plan"
 MP task-invalidate paper1 L1 --reason "A hidden hypothesis was discovered"
 ```
 
-`result` JSON requires `task_id`, `spec_hash`, `outcome`, `summary`, `next_action`, and optional artifact paths inside the actual lease attempt directory. Outcomes are candidate, refuted, blocked and no_progress. Completed work has no proof authority by itself. A blocked task is not automatically retried forever: cancel/supersede it with an explicit new task after replanning. Expired attempts still count toward the attempt budget. `resume` can explicitly raise the global budget, never reset consumed attempts.
+`spec_hash` is a legacy key for the current goal revision ID, not a hash. `result` JSON requires `task_id`, `spec_hash`, `outcome`, `summary`, `next_action`, and optional artifact paths inside the actual lease attempt directory. Outcomes are candidate, refuted, blocked and no_progress. Completed work has no proof authority by itself. A blocked task is not automatically retried forever: cancel/supersede it with an explicit new task after replanning. Expired attempts still count toward the attempt budget. `resume` can explicitly raise the global budget, never reset consumed attempts.
 
-Register evidence separately. Use fresh filenames rather than mutate files already registered:
+Register useful results separately. Working notes may be improved in place; register a replacement when the mathematical claim changes, not because its file hash changed.
 
 ```text
 MP evidence-add paper1 spec_review WORKSPACE/spec-review.json --producer formalizer
@@ -45,7 +45,7 @@ MP evidence-add paper1 integration WORKSPACE/integration.md --producer integrato
 MP gate paper1 verify
 ```
 
-For formal mode, replace the research integration step's authority with an explicit operator-approved `MP verify paper1 --allow-build --timeout 1800`, then rerun the verify gate. Copy source changes into the canonical Lean project via an authorized integration step before verification. A worker's local scaffold does not replace the canonical project.
+For formal mode, run `MP verify paper1 --timeout 1800` in the existing Lean project, then record the verify stage. The runner reuses Lake caches and checks the exact mathematical target; no version pin, file hash or additional build acknowledgement is required.
 
 ```text
 MP evidence-add paper1 counterexample_candidate WORKSPACE/witness.json --producer refuter
@@ -61,16 +61,16 @@ MP resume paper1 --budget-attempts 48
 
 Resolution binds existing evidence; its mathematical adequacy is a human/auditor responsibility. Withdrawing the resolution evidence makes the issue unresolved for gate purposes. New statement versions need a `revise ... --spec ... --reason ...`; prior run evidence is not silently carried forward.
 
-The human reviews the current snapshot **outside the agent's tool execution**:
+Optional mathematical review notes can be recorded by the researcher or a reviewer; no additional acknowledgement is required:
 
 ```text
 MP status paper1 --check
-MP review paper1 --reviewer "YOUR_NAME" --note "Reviewed the stated scope and limitations" --snapshot EXACT_CURRENT_SNAPSHOT --human-ack
+MP review paper1 --reviewer "YOUR_NAME" --note "Reviewed the stated scope and limitations" --snapshot EXACT_CURRENT_SNAPSHOT
 MP gate paper1 release
 MP export paper1 --out WORKSPACE/paper1-review.zip
 MP audit-events
 ```
 
-The local acknowledgement does not authenticate a person's identity. New artifacts, task changes, issues or withdrawal invalidate the reviewed snapshot. Inspect the export before sharing; it is a review packet, not a standalone formal certificate. Back up the workspace with SQLite's online backup API or with all writers stopped; do not copy a live database while omitting its WAL.
+The note records a mathematical judgment. Working-file edits do not trigger hash validation or mandatory reapproval. Inspect the export before sharing; it is a review packet, not a standalone formal certificate. Back up the workspace with SQLite's online backup API or with all writers stopped; do not copy a live database while omitting its WAL.
 
 For a formal translation audit, use an auditor or formalizer task with `MP packet paper1 AUDIT_TASK --blind-statement`. Give it to a fresh read-only worker and compare its back-translation to the original informal statement outside that worker. Do not pretend packet filtering is access isolation.

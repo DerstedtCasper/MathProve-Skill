@@ -17,11 +17,11 @@ def main():
         atomic_write(base/f'integrations/comath/prompts/{role}.md',
                      '# Retired rc1 adaptation draft — do not install\n\n'
                      'Portable role names are not CoMath registry IDs. Use ../profiles/ and '
-                     'docs/v9/COMATH-PROMPTS.md for the source-pinned mapping and integration path.\n')
+                     'docs/v9/COMATH-PROMPTS.md for the current-service profile mapping and integration path.\n')
     for profile in PROFILES:
         atomic_write(base/f'integrations/comath/profiles/{profile}.md',render_profile(profile,shared))
     atomic_write(base/'integrations/comath/profile-bindings.json',
                  json.dumps({'schema':'mathprove.comath-profile-bindings.v1',
                              'profiles':[profile_binding(profile) for profile in PROFILES]},indent=2)+'\n')
-    print('Generated nine portable Codex templates and nine source-pinned CoMath profile supplements; neither installed.')
+    print('Generated nine portable Codex templates and nine current-service CoMath profile supplements; neither installed.')
 if __name__=='__main__':main()

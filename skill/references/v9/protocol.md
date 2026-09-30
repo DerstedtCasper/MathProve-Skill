@@ -1,52 +1,40 @@
-# v9 protocol and trust contract
+# MathProve research records and verification
 
-This protocol is intentionally **single-user, local-filesystem, cooperative**. The coordinator is the intended sole state writer. SQLite transactions serialize concurrent compliant clients; worker leases reject late/duplicate submissions. These are not OS authentication. A process with the same filesystem access can rewrite the database, scripts and hash chain. Never describe the local review flag as cryptographic human authorization.
+This is a mathematical workbench. Its optional local controller records goals, tasks, notes, counterexamples and verification results; it is not an engineering audit or approval system.
 
-## State and evidence
+## Research state
 
-`.mathprove/state.sqlite3` is authoritative for the portable controller. `.mathprove/objects` contains content-addressed evidence snapshots; `.mathprove/checkpoints` contains resumable summaries; `.mathprove/replays` contains verification working trees and logs. `WORKSPACE/<run>/tasks/<task>/attempt-...` holds worker artifacts. Never treat Markdown summaries as state authority. Keep the state on a local disk, not an untested network filesystem. No v8 database migration is attempted.
+`.mathprove/state.sqlite3` stores task metadata. `.mathprove/objects` keeps registered evidence copies identified by ordinary object IDs; `.mathprove/checkpoints` contains resumable summaries; `.mathprove/replays` contains compilation logs. Working artifacts stay in the research workspace.
 
-Each run locks a canonical JSON statement hash. Spec revisions invalidate previous task authority and gate progression. Every submitted result must bind both a live lease and the current hash. Keep lease tokens in private claim JSON files, not prompts, shared agent packets or command-line arguments. Tokens prevent accidental cross-worker submission; they are not a defense against the same OS user.
+Each mathematical goal has a revision ID such as `paper1:2`. The legacy `spec_hash` field carries this ID for compatibility with existing task JSON; it is not a content digest. A changed goal requires an explicit `revise` so tasks are not accidentally attached to a different theorem. Working notes and lemma drafts can be edited normally. Their byte changes do not cause hash failures or automatic reapproval. Registered copies remain historical; register the revised claim when its mathematical meaning changes.
 
-Evidence keeps its registered origin hash. Editing or removing an origin makes it stale; restore it or `evidence-withdraw` with a reason and register a replacement. Withdrawal never deletes history. Completed task artifact hashes are checked at dependency consumption and later gates. `task-invalidate` cancels that task and descendants, opens a review issue and requires a new plan/new task IDs. It does not magically know which mathematical claims depend on a free-form note: the coordinator must also withdraw affected evidence.
+The controller checks that referenced files exist and that required mathematical records are readable. It does not compare file, dependency, executable, log or event hashes. Old database column names remain readable without migrating or erasing research history.
 
-Status fields are historical; use `status --check` or the relevant `gate --check` for current validity. Hook briefings deliberately avoid expensive file hashing and raw research text. An event hash chain detects corruption or incomplete edits, but an attacker able to rewrite all records can recompute it.
+## Optional workflow stages
 
-## Six cumulative gates
+| Stage | Mathematical purpose |
+|---|---|
+| spec | Compare the intended statement, assumptions and formal type |
+| plan | Record an acyclic lemma graph and checked sources or an elementary-task explanation |
+| candidate | Keep a candidate argument and visible unresolved objections |
+| refutation | Record adverse tests, boundary cases and unresolved counterexamples |
+| verify | Integrate research findings, or run Lean on the exact target |
+| release | Summarize the recorded result and remaining limits; no extra human-signature gate |
 
-| Gate | Required current evidence | Meaning |
-|---|---|---|
-| spec | spec_review JSON: current spec_hash, statement_match=true, assumptions_checked=true, reviewer, issues=[] | A recorded translation/assumption review, not automatic semantic equivalence |
-| plan | plan JSON: current hash, exact node statements, acyclic dependencies, target, checked literature records or justified exemption | A structurally usable plan; citation truth still requires source review |
-| candidate | candidate artifact; no unresolved adverse issue or stale task artifact | A candidate exists, not a theorem proved |
-| refutation | current-hash refutation JSON, nonempty reproducible test records, limitations, reviewer, no unresolved counterexample | Adverse-evidence search recorded; no-counterexample-found is not proof |
-| verify | all tasks done/cancelled; research integration note OR the latest runner-produced successful local Lean receipt | Research completeness review or scoped local formal checking |
-| release | all prior checks fresh, exact-snapshot human review | reviewed_research or reviewed_formal_local, never a blanket novelty/security certificate |
+These stages help a sustained project resume. A small proof need not initialize them. Reviewer names and result labels record mathematical judgments; they do not authenticate an institution, establish novelty or turn an informal argument into a formal proof.
 
-`checked:true`, reviewer names, source URLs and human-ack are attestations/structure. The controller cannot determine whether a person truly read a paper, whether an informal proof is correct, or who is physically using the terminal. The human/auditor must check substantive content.
+## Lean and mathlib
 
-## Formal verification profile
+Use current mutually compatible Lean/mathlib. Prepare or update a project with normal Lake commands, using current mathlib's required Lean toolchain. Do not independently replace that toolchain with an incompatible release. Existing versioned `lean-toolchain` or generated `lake-manifest.json` files are normal Lake metadata, not a requirement to freeze old versions forever. `stable`, `nightly`, moving branches, registry packages and local path dependencies are not rejected by MathProve.
 
-Use a dedicated small Lake project. The initial adapter supports a concrete versioned `leanprover/lean4:vX.Y.Z` (optionally `-rcN`), a checked-in `lake-manifest.json`, and HTTPS Git dependencies pinned to full 40-hex revisions. Path packages, registry-only pins, custom universes/complex declaration names and some metaprogramming-heavy projects need an explicitly reviewed extension, not a silent bypass.
+`verify <run>` executes `lake build` in the actual project and reuses `.lake`. It then generates a small audit theorem with the requested `expected_type`, applies the specified declaration, runs `lake env lean`, and reads its axiom report. No cold project copy, source fingerprint, dependency Git status, binary hash or log hash is required. Ordinary compilation does not need a repeated `--allow-build` acknowledgement.
 
-The runner does not import a caller-supplied success log. It creates a new directory without copying the original `.lake` cache, executes the reviewed Lake build, generates a random audit theorem with `autoImplicit false`, checks that the target term has the exact expected type, and reads the generated theorem's axiom dependencies. The allowlist is `propext`, `Classical.choice`, `Quot.sound`; other axioms, absent output, failed commands, changed input sources and missing provenance fail closed. Source lexical checks are conservative aids, not a Lean parser or substitute for the kernel.
+The result records the full mathematical specification, actual Lean/Lake versions, command exit codes, logs, target-type result and axioms. `sorryAx` identifies an incomplete proof. Axiom dependencies outside `propext`, `Classical.choice`, `Quot.sound` are reported rather than treated as an unconditional proof. Legitimate macros, `elab`, `native_decide`, local libraries and other normal research techniques are not forbidden by a blanket source scan.
 
-The receipt records source/config hashes, dependency source revisions/hashes, resolved toolchain identity, generated audit source and build/check logs. Gate checks rehash current original sources, retained replay inputs, compiled artifacts, materialized dependency sources, toolchain binaries, audit source and logs; they also invalidate receipts when the verifier implementation changes. The receipt is produced by the local runner and remains within the same-user trust boundary.
+A result remains a historical record of the target that was checked. If the target or proof changes, run Lean again before claiming that the new result has been checked; the workbench does not enforce this through file hashes. A failed or absent actual check is not a formal success. Missing Lean does not stop informal research, literature work, CAS experiments or proof planning.
 
-**Important limits:** a fresh directory is not a sandbox. Lake files and dependency code can execute with the caller's permissions and may use the network. Arbitrary build scripts may download caches; this adapter does not attest a hermetic, source-only rebuild of every transitive dependency. A human must review build behavior or run it in a controlled external environment. A formal result still depends on the trusted compiler/kernel, libraries/definitions and the faithful formal specification. This is not CoMath's uninspected proof-kernel/host-approval implementation and must not replace it as a security boundary.
+## Hooks, review and collaboration
 
-No Lean/lake in the environment means no formal evidence, not a fallback to 'LLM verified'. Operator consent is mandatory for `--allow-build`. Use a disposable controlled environment for unfamiliar projects. `timeout` is per command, not a total run-cost cap. Failed attempts retain logs and cannot inherit a previous successful receipt by pretending the latest failure did not happen.
+Hooks restore small context summaries and save checkpoints; they never compile or call a model. They retain lightweight metadata rather than raw private commands, tool responses or cryptographic fingerprints. Review is an ordinary mathematical note, not a host-only signature ceremony. SQLite writes still go through the controller to avoid corrupting saved work.
 
-## Context, budgets and independence
-
-The controller bounds concurrent leases and task attempts, not token spending or provider costs. The host must enforce billing/time limits. A compact packet contains one task, one statement lock and relevant references. Its character cap refuses oversize input instead of truncating mathematical statements. Search stored failure notes before reattempting a route; do not make a million-token context target a success criterion.
-
-The blind statement packet omits the original informal statement, task advocacy and other verdicts. It does not prevent an agent with broad file-read access from finding them. True blinded review needs a separate host context and restricted data access; the portable controller only supplies the filtered packet. A sequential 'auditor' pass cannot be reported as an independent agent's conclusion.
-
-## Hooks and privacy
-
-Native Codex command hooks cover SessionStart, PreToolUse, PostToolUse, PreCompact, PostCompact, SubagentStart, SubagentStop, Stop and SessionEnd. Hooks never call models or compile proofs. Neutral PreToolUse returns `{}` and does not grant permissions. Its narrow write/self-review checks are best-effort guardrails, not shell-language enforcement. Hosted tools, tool aliases, persistent shell sessions and same-user processes prevent comprehensive mediation.
-
-PostToolUse records hashes rather than raw commands, responses or transcripts. Stop checkpoints once and permits unresolved work to stop; a checkpoint failure requests one repair turn at most using stop_hook_active. SessionEnd is best effort under its host timeout. The installer does not change trust, permission policy or global config. Inspect `/hooks`, and re-review modified hooks. Exact commands use installed absolute paths; reinstall after moving a project or Python.
-
-Exports contain unpublished research and reviewer notes. They exclude the live SQLite database, lease tokens and transcripts, but are not automatically safe for publication. A review export is not a complete transitive-dependency replay bundle. Never upload without a human check.
+Keep actual assumptions and unresolved objections visible. Distinguish independent review from sequential role passes. Preserve useful failure notes, respect the user's stop request, and avoid mandatory token quotas, repeated approvals and hash-validation detours. Host permissions and publication scope are unchanged.
