@@ -77,7 +77,7 @@ def source_files(source: Path) -> list[Path]:
         if not p.is_file() or p.suffix == ".pyc": continue
         # Additive overlay must not silently reinstall an uninspected v8 runtime.
         name = rel.as_posix()
-        if name in {"SKILL.md", "agent.md", "agents/openai.yaml", "scripts/mathprove.py", "scripts/mathprove_hook.py"} or name.startswith(("runtime_v9/", "assets/v9/", "references/v9/")):
+        if name in {"SKILL.md", "agent.md", "requirements-db.txt", "agents/openai.yaml", "scripts/mathprove.py", "scripts/mathprove_hook.py"} or name.startswith(("runtime_v9/", "assets/v9/", "references/v9/")):
             selected.append(p)
     if not (source / "SKILL.md").is_file(): raise ProtocolError("Missing skill/SKILL.md")
     return selected

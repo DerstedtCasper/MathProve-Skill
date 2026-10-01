@@ -18,6 +18,12 @@ SKILL=BASE/'skill'
 CLI=SKILL/'scripts/mathprove.py'
 
 class InstallTests(WorkspaceCase):
+    def test_installed_copy_includes_unpinned_database_dependency(self):
+        install(SKILL,self.root,hooks=False,agents=False)
+        dest=self.root/'.agents/skills/mathprove-skill'
+        self.assertEqual((dest/'requirements-db.txt').read_text(encoding='utf-8'),'triviumdb\n')
+        self.assertTrue((dest/'runtime_v9/research_db.py').is_file())
+        self.assertFalse((self.root/'.codex/hooks.json').exists())
     def test_install_idempotent_and_no_global_configuration(self):
         first=install(SKILL,self.root);second=install(SKILL,self.root)
         self.assertTrue(first['changed_paths']);self.assertEqual(second['changed_paths'],[])

@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+.venv-triviumdb/
 
 # Local logs / artifacts
 logs/
