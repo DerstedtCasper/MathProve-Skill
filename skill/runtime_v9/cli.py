@@ -20,6 +20,11 @@ def parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True)
     sub.add_parser("init")
     sub.add_parser("doctor")
+    s = sub.add_parser("db-init"); s.add_argument("--dim", required=True, type=int)
+    s = sub.add_parser("db-put"); s.add_argument("run"); s.add_argument("--record", required=True)
+    s = sub.add_parser("db-get"); s.add_argument("run"); s.add_argument("node_id", type=int)
+    s = sub.add_parser("db-query"); s.add_argument("run"); s.add_argument("--query", default=""); s.add_argument("--limit", type=int, default=20)
+    s = sub.add_parser("db-link"); s.add_argument("run"); s.add_argument("source_id", type=int); s.add_argument("target_id", type=int); s.add_argument("--label", default="related")
     sub.add_parser("list")
     sub.add_parser("audit-events")
     for name in ("start", "revise"):
@@ -125,9 +130,11 @@ def export_review(store: Store, run: str, out: str) -> dict:
 def execute(a: argparse.Namespace) -> object:
     root = Path(a.root).expanduser().resolve()
     if a.command == "doctor":
+        from .research_db import probe
         return {"version": VERSION, "python": platform.python_version(), "platform": platform.platform(),
                 "sqlite": sqlite3.sqlite_version, "tools": {k: shutil.which(k) for k in ("lean", "lake", "git", "codex")},
                 "root": str(root), "state_initialized": (root / ".mathprove/state.sqlite3").is_file(),
+                "research_database": probe(root),
                 "hooks": "Installation does not imply host trust; inspect /hooks manually",
                 "capabilities": {"research_protocol": True, "local_lean_runner_available": bool(shutil.which("lake")),
                                  "live_host_compatibility_verified": False, "os_security_boundary": False}}
@@ -135,6 +142,14 @@ def execute(a: argparse.Namespace) -> object:
     load = lambda name: strict_json(safe_path(root, name, exists=True))
     cmd = a.command
     if cmd == "init": return {"root": str(root), "schema": 9, "state": ".mathprove/state.sqlite3"}
+    if cmd.startswith("db-"):
+        from .research_db import ResearchDB
+        db = ResearchDB(root)
+        if cmd == "db-init": return db.initialize(a.dim)
+        if cmd == "db-put": return db.put(a.run, load(a.record))
+        if cmd == "db-get": return db.get(a.run, a.node_id)
+        if cmd == "db-query": return db.query(a.run, a.query, a.limit)
+        if cmd == "db-link": return db.link(a.run, a.source_id, a.target_id, a.label)
     if cmd == "list": return s.list_runs()
     if cmd == "audit-events": return s.audit_events()
     if cmd == "start": return s.create_run(a.run, load(a.spec), max_parallel=a.max_parallel, max_attempts=a.max_attempts, budget_attempts=a.budget_attempts)

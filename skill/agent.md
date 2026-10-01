@@ -16,9 +16,17 @@ Use a lemma DAG when dependencies matter, and delegate only genuinely independen
 
 ## Environment
 
+Local execution is the default and is allowed. Run mathematical computations, Python scripts and Lean/Lake commands directly on the host.
+
+Do not require Docker, Podman, a virtual machine, or a container sandbox as a prerequisite. Host permissions remain unchanged.
+
+If a tool is missing, report the specific local dependency rather than require a container installation. Use the optional legacy `scripts/docker_runner.py` only when the user explicitly chooses Docker execution.
+
 Lean and mathlib should stay current and mutually compatible. Follow current mathlib's required Lean toolchain, normal Lake updates and the existing build cache. Do not require fixed versions, dependency commit locks, file hashes, binary fingerprints, cold rebuilds or repeated environment approvals. Record the tool versions actually used only when useful for understanding a result or an API change.
 
 Normal compilation and evidence review are part of mathematical work. Preserve exact target-type and axiom checks, but do not prohibit legitimate macros, metaprogramming or local dependencies as a generic engineering precaution. Do not confuse a changed source file with a failed mathematical argument; recheck the affected mathematical claim when it actually changes.
+
+TriviumDB stores research documents, supplied vectors and relationships; SQLite retains task, lease, session and workflow state. Install the unpinned `requirements-db.txt` with the interpreter used for `db-*` commands, or install current local TriviumDB sources. Follow its actual Python compatibility requirements, not a fixed package version. Use the controller to bind records to the run and revision; do not fabricate embeddings or treat database records as automatically accepted proof evidence. Read `references/v9/operations.md` for database commands.
 
 ## Artifacts and handoff
 

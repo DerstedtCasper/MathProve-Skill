@@ -60,10 +60,12 @@ class RunnerTests(WorkspaceCase):
                 log.write_text(axiom_output if axiom_output is not None else text)
             return {"argv": argv, "exit_code": code, "timed_out": timed_out, "elapsed_seconds": 0.0}
 
-        with patch('runtime_v9.runner.shutil.which', return_value=str(self.fake_lake)), \
+        with patch('runtime_v9.runner.shutil.which', return_value=str(self.fake_lake)) as which, \
              patch('runtime_v9.runner._command_output', side_effect=output), \
              patch('runtime_v9.runner.run_process', side_effect=process):
-            return verify(self.store, 'r', acknowledge=acknowledge, timeout=30)
+            result = verify(self.store, 'r', acknowledge=acknowledge, timeout=30)
+            which.assert_called_once_with('lake')
+            return result
 
     def receipt(self):
         with self.store.connect() as c:
@@ -276,6 +278,21 @@ class RunnerTests(WorkspaceCase):
         self.assertTrue(self.store.gate('r', 'verify')['accepted'])
         self.mocked_run(axioms='sorryAx')
         self.assertFalse(self.store.gate('r', 'verify')['accepted'])
+
+    def test_local_python_process_uses_spaced_cwd_without_container_discovery(self):
+        cwd = self.root / 'local execution with spaces'
+        cwd.mkdir()
+        log = cwd / 'local process.log'
+        argv = [sys.executable, '-c', 'from pathlib import Path; print(Path.cwd())']
+        with patch('runtime_v9.runner.shutil.which', side_effect=AssertionError('No container discovery for local execution')):
+            result = run_process(argv, cwd, log, 10)
+        self.assertEqual(result['exit_code'], 0)
+        self.assertFalse(result['timed_out'])
+        output = log.read_text().strip()
+        self.assertEqual(Path(output), cwd)
+        self.assertEqual(log.read_text(), str(cwd) + '\n')
+        self.assertEqual(result['log_path'], str(log))
+        self.assertEqual(result['argv'], argv)
 
     def test_run_process_preserves_exit_code_and_log_without_hash(self):
         log = self.root / 'process.log'

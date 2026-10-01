@@ -15,6 +15,20 @@ For a sustained project, the optional portable controller provides notes, lemma 
 
 If an existing CoMath service is already the workbench, read `references/v9/comath-backed.md` and discover its current tools. Do not create a second database for the same project.
 
+## Local execution
+
+Local execution is the default and is allowed. Run mathematical computations, Python scripts and Lean/Lake commands directly on the host.
+
+Do not require Docker, Podman, a virtual machine, or a container sandbox as a prerequisite. Host permissions remain unchanged.
+
+If a tool is missing, report the specific local dependency rather than require a container installation. Use the optional legacy `scripts/docker_runner.py` only when the user explicitly chooses Docker execution.
+
+## Research database
+
+TriviumDB is the research database dependency for document records, user-provided vectors and relationships. Install `requirements-db.txt` with the Python interpreter used for database commands; the dependency is unpinned, and local source installations are valid. Use a Python version supported by the installed TriviumDB package rather than force an incompatible interpreter.
+
+Use `db-init`, `db-put`, `db-get`, `db-query` and `db-link` through the controller; see `references/v9/operations.md`. Supply actual vectors, not invented embeddings. Records retain their run and goal revision. SQLite continues to store tasks, leases, sessions and workflow state; research database records do not become proof evidence automatically. `doctor` reports the actual dependency environment. Missing TriviumDB does not block ordinary mathematical work or the SQLite controller.
+
 ## Research method
 
 - Define objects, quantifiers, assumptions and conventions. Separate strict proofs, conditional lemmas, conjectures, physical intuition and finite/numerical evidence.

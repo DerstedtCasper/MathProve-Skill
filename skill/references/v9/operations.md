@@ -1,6 +1,14 @@
 # Command reference and operator workflow
 
-Run the installed entrypoint with Python 3.11 or later. All commands accept `--root` **before** the command, emit JSON by default and use exit status 2 for a rejected operation/gate. `status --human --check` gives a small terminal summary. No third-party Python packages are needed.
+## Local execution
+
+Local execution is the default and is allowed. Run mathematical computations, Python scripts and Lean/Lake commands directly on the host.
+
+Do not require Docker, Podman, a virtual machine, or a container sandbox as a prerequisite. Host permissions remain unchanged.
+
+If a tool is missing, report the specific local dependency rather than require a container installation. Use the optional legacy `scripts/docker_runner.py` only when the user explicitly chooses Docker execution.
+
+Run the installed entrypoint with Python 3.11 or later. All commands accept `--root` **before** the command, emit JSON by default and use exit status 2 for a rejected operation/gate. `status --human --check` gives a small terminal summary. The SQLite controller uses the standard library; the `db-*` research database commands additionally require TriviumDB from the unpinned `requirements-db.txt`.
 
 Below, `MP` means `python /absolute/path/to/skill/scripts/mathprove.py --root /absolute/research/root`; substitute that complete command, not a nonexistent executable. Input files must exist under the research root. Existing roots are never created implicitly.
 
@@ -17,6 +25,35 @@ MP task-add paper1 L2 --role refuter --objective "Check the boundary case" --dep
 MP claim paper1 --owner coordinator-worker1 --task L1 --ttl 900
 MP packet paper1 L1
 ```
+
+## TriviumDB research database
+
+The research database dependency is `triviumdb`, with no version or source commit pin. Install `requirements-db.txt` using the same interpreter as the `db-*` commands, or install current local TriviumDB sources. Follow the installed package's Python compatibility requirements; a local Python virtual environment is dependency isolation, not a virtual machine. The SQLite controller remains usable without this extension.
+
+SQLite stores task, lease, session and workflow state. TriviumDB stores research documents, supplied vectors and relationships in `.mathprove/research.tdb`; `.mathprove/research-db.json` records the vector dimension. It does not replace workflow state, migrate old databases or automatically register proof evidence. Initialize the ordinary workspace and start a run first, then use:
+
+```text
+MP db-init --dim 3
+MP db-put paper1 --record WORKSPACE/record.json
+MP db-get paper1 1
+MP db-query paper1 --query "lemma" --limit 20
+MP db-link paper1 1 2 --label "uses"
+MP doctor
+```
+
+The node numbers above are examples: use the `node_id` returned by actual writes. The input file has the following structure; its vector must be an actual supplied vector, not an invented embedding:
+
+```json
+{
+  "vector": [1.0, 0.0, 0.0],
+  "payload": {
+    "kind": "lemma",
+    "text": "Reflexivity lemma"
+  }
+}
+```
+
+The dimension is explicit and cannot be silently changed after initialization. Vectors must have that length with finite real elements; the payload must be a JSON object. The payload is stored as lossless JSON text inside the database envelope and decoded on read, preserving large mathematical integers. Each record retains its run and registration-time goal revision; records from other runs cannot be read or linked through these commands. `db-query` matches literal text in decoded JSON keys and values, ignores case, and returns records in node-number order. It is not semantic vector retrieval. Native errors are reported, not converted into empty successful results. `doctor` reports the actual importable package version and initialization metadata without opening the native data file.
 
 Save the claim JSON in a private root-local file, for example `WORKSPACE/claim-L1.private.json`; do not send its lease_token to the model worker or commit it. The packet omits the token. The coordinator uses the private file for heartbeat and submission:
 

@@ -1,10 +1,24 @@
 """Research workflow must not be blocked by artifact hashes or repeat approvals."""
 import json
+from pathlib import Path
 from unittest.mock import patch
 from helpers import WorkspaceCase
 
 
 class ResearchWorkflowTests(WorkspaceCase):
+    def test_skill_entries_allow_local_execution_without_container_prerequisites(self):
+        skill = Path(__file__).resolve().parents[1] / 'skill'
+        rules = (
+            'Local execution is the default and is allowed.',
+            'Do not require Docker, Podman, a virtual machine, or a container sandbox as a prerequisite.',
+            'Host permissions remain unchanged.',
+        )
+        for entry in ('SKILL.md', 'agent.md', 'references/v9/operations.md'):
+            with self.subTest(entry=entry):
+                text = (skill / entry).read_text(encoding='utf-8')
+                for rule in rules:
+                    self.assertIn(rule, text)
+
     def test_editing_a_registered_note_does_not_make_it_stale(self):
         evidence = self.evidence('note', 'first draft')
         self.artifact('note.json', 'improved draft')
